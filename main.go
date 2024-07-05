@@ -13,39 +13,75 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func connectAndSubscribe(walletPubKey string) (*websocket.Conn, error) {
-	u := url.URL{
-		Scheme:   "wss",
-		Host:     "mainnet.helius-rpc.com",
-		RawQuery: "api-key=49a67108-ceb9-4075-a89e-cd19aedd94b2",
-	}
-	log.Printf("Connecting to %s", u.String())
+const (
+	WebSocketScheme = "wss"
+	WebSocketHost   = "mainnet.helius-rpc.com"
+	APIKeyEnvVar    = "API_KEY"
+)
 
-	// Use DefaultDialer from the gorilla/websocket package to initiate the WebSocket connection
-	dialer := websocket.DefaultDialer
-	c, resp, err := dialer.Dial(u.String(), nil)
+func extractTokenTransfers(logs []interface{}) []string {
+	var transfers []string
+	for i, log := range logs {
+		logStr, ok := log.(string)
+		if !ok {
+			continue
+		}
+		if logStr == "Program  invoke [3]" {
+			if i+1 < len(logs) {
+				nextLog, ok := logs[i+1].(string)
+				if ok && nextLog == "Program log: Instruction: Transfer" {
+					transfers = append(transfers, "Token Transfer")
+				}
+			}
+		}
+	}
+	return transfers
+}
+
+func connectAndSubscribe(mentions []string) (*websocket.Conn, error) {
+	apiKey := os.Getenv(APIKeyEnvVar)
+	if apiKey == "" {
+		return nil, fmt.Errorf("API key not provided")
+	}
+
+	u := url.URL{Scheme: WebSocketScheme, Host: WebSocketHost, RawQuery: "api-key=" + apiKey}
+	log.Printf("connecting to %s", u.String())
+
+	dialer := websocket.Dialer{
+		HandshakeTimeout: 45 * time.Second,
+		ReadBufferSize:   1024,
+		WriteBufferSize:  1024,
+	}
+
+	c, _, err := dialer.Dial(u.String(), nil)
 	if err != nil {
-		log.Printf("Dial error: %v", err)
-		if resp != nil {
-			log.Printf("HTTP Response Code: %d, Status: %s", resp.StatusCode, resp.Status)
-		}
-		return nil, err
+		return nil, fmt.Errorf("dial error: %v", err)
 	}
-	defer func() {
-		if resp != nil {
-			resp.Body.Close()
-		}
-	}()
 
-	fmt.Println("WebSocket connection established successfully")
+	subscribe := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      1,
+		"method":  "logsSubscribe",
+		"params": []interface{}{
+			map[string]interface{}{
+				"mentions": mentions,
+			},
+			map[string]string{
+				"commitment": "finalized",
+			},
+		},
+	}
 
-	// Sending the subscription message
-	subscribeMessage := fmt.Sprintf(`{"jsonrpc":"2.0","id":1,"method":"logsSubscribe","params":[{"mentions":["%s"]},{"commitment":"finalized"}]}`, walletPubKey)
-	err = c.WriteMessage(websocket.TextMessage, []byte(subscribeMessage))
+	message, err := json.Marshal(subscribe)
 	if err != nil {
 		c.Close()
-		log.Printf("Subscribe error: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("JSON marshal error: %v", err)
+	}
+
+	err = c.WriteMessage(websocket.TextMessage, message)
+	if err != nil {
+		c.Close()
+		return nil, fmt.Errorf("write error: %v", err)
 	}
 
 	return c, nil
@@ -59,7 +95,7 @@ func main() {
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	for {
-		c, err := connectAndSubscribe(walletPubKey)
+		c, err := connectAndSubscribe([]string{walletPubKey})
 		if err != nil {
 			log.Println("Failed to connect:", err)
 			time.Sleep(3 * time.Second)
@@ -94,15 +130,47 @@ func main() {
 					break
 				}
 
-				go func(msg []byte) {
-					var messageData map[string]interface{}
-					if err := json.Unmarshal(msg, &messageData); err != nil {
-						log.Printf("Failed to unmarshal message: %v", err)
-						return
-					}
+				var messageData map[string]interface{}
+				if err := json.Unmarshal(message, &messageData); err != nil {
+					log.Printf("Failed to unmarshal message: %v", err)
+					continue
+				}
 
-					// Handle the incoming WebSocket message here
-				}(message)
+				params, ok := messageData["params"].(map[string]interface{})
+				if !ok {
+					continue
+				}
+
+				result, ok := params["result"].(map[string]interface{})
+				if !ok {
+					continue
+				}
+
+				value, ok := result["value"].(map[string]interface{})
+				if !ok {
+					continue
+				}
+
+				signature, ok := value["signature"].(string)
+				if !ok {
+					continue
+				}
+
+				logs, ok := value["logs"].([]interface{})
+				if !ok {
+					continue
+				}
+
+				transfers := extractTokenTransfers(logs)
+
+				if len(transfers) > 0 {
+					fmt.Printf("Transaction Signature: %s\n", signature)
+					fmt.Println("Token Transfers:")
+					for _, transfer := range transfers {
+						fmt.Printf("- %s\n", transfer)
+					}
+					fmt.Println("------------------------")
+				}
 			}
 		}()
 
