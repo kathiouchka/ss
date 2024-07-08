@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -19,23 +20,52 @@ const (
 	APIKeyEnvVar    = "API_KEY"
 )
 
-func extractTokenTransfers(logs []interface{}) []string {
-	var transfers []string
-	for i, log := range logs {
+type Transaction struct {
+	Timestamp time.Time              `json:"timestamp"`
+	Signature string                 `json:"signature"`
+	Logs      []interface{}          `json:"logs"`
+	Value     map[string]interface{} `json:"value"`
+}
+
+func logTransaction(tx Transaction) error {
+	file, err := os.OpenFile("transactions.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	jsonData, err := json.Marshal(tx)
+	if err != nil {
+		return err
+	}
+
+	if _, err := file.WriteString(string(jsonData) + "\n"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func extractInstructions(logs []interface{}) map[string]bool {
+	instructions := make(map[string]bool)
+	for _, log := range logs {
 		logStr, ok := log.(string)
 		if !ok {
 			continue
 		}
-		if logStr == "Program  invoke [3]" {
-			if i+1 < len(logs) {
-				nextLog, ok := logs[i+1].(string)
-				if ok && nextLog == "Program log: Instruction: Transfer" {
-					transfers = append(transfers, "Token Transfer")
-				}
+		if strings.Contains(logStr, "Instruction:") {
+			if strings.Contains(logStr, "Transfer") || strings.Contains(logStr, "TransferChecked") {
+				instructions["Transfer"] = true
+			} else if strings.Contains(logStr, "Swap") {
+				instructions["Swap"] = true
+			} else if strings.Contains(logStr, "MintTo") {
+				instructions["MintTo"] = true
+			} else if strings.Contains(logStr, "Burn") {
+				instructions["Burn"] = true
 			}
 		}
 	}
-	return transfers
+	return instructions
 }
 
 func connectAndSubscribe(mentions []string) (*websocket.Conn, error) {
@@ -161,13 +191,24 @@ func main() {
 					continue
 				}
 
-				transfers := extractTokenTransfers(logs)
+				tx := Transaction{
+					Timestamp: time.Now(),
+					Signature: signature,
+					Logs:      logs,
+					Value:     value,
+				}
 
-				if len(transfers) > 0 {
+				if err := logTransaction(tx); err != nil {
+					log.Printf("Failed to log transaction: %v", err)
+				}
+
+				instructions := extractInstructions(logs)
+
+				if len(instructions) > 0 {
 					fmt.Printf("Transaction Signature: %s\n", signature)
-					fmt.Println("Token Transfers:")
-					for _, transfer := range transfers {
-						fmt.Printf("- %s\n", transfer)
+					fmt.Println("Instructions:")
+					for instruction := range instructions {
+						fmt.Printf("- %s\n", instruction)
 					}
 					fmt.Println("------------------------")
 				}
