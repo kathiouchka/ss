@@ -7,6 +7,7 @@ const axios = require('axios'); // You'll need to install this package
 const WebSocketScheme = 'wss';
 const WebSocketHost = 'mainnet.helius-rpc.com';
 const APIKeyEnvVar = 'API_KEY';
+const walletPubKeyEnvVar = "WALLET_PUB_KEY"
 
 function logTransaction(tx) {
   const jsonData = JSON.stringify(tx, null, 2);
@@ -15,7 +16,7 @@ function logTransaction(tx) {
 
 async function extractDetailedInformation(signature) {
   const apiKey = process.env[APIKeyEnvVar];
-  const url = `https://${WebSocketHost}/v0/transactions/?api-key=${apiKey}`;
+  const url = `https://api.helius.xyz/v0/transactions/?api-key=${apiKey}`;
   
   try {
     const response = await axios.post(url, {
@@ -83,7 +84,7 @@ function connectAndSubscribe(mentions) {
   }
 
 async function main() {
-  const walletPubKey = process.env[WALLET_PUB_KEY];
+  const walletPubKey = process.env[walletPubKeyEnvVar];
   const pingInterval = 25000; // 25 seconds
 
   while (true) {
@@ -103,16 +104,17 @@ async function main() {
         const signature = value.signature;
 
         if (signature) {
+          // Print the signature of every transaction detected
+          console.log(`Transaction Signature: ${signature}`);
+
           const detailedInfo = await extractDetailedInformation(signature);
 
           if (detailedInfo) {
-            // Log the transaction
-            logTransaction(detailedInfo);
-
-            // Display the detailed information
-            console.log('Transaction Details:');
-            console.log(JSON.stringify(detailedInfo, null, 2));
-            console.log('------------------------');
+              logTransaction(detailedInfo);
+              // Display the detailed information
+              console.log('Transaction Details:');
+              console.log(JSON.stringify(detailedInfo, null, 2));
+              console.log('------------------------');
           }
         }
       });
