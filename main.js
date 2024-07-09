@@ -14,6 +14,64 @@ function logTransaction(tx) {
   fs.appendFileSync('transactions.log', jsonData + '\n\n');
 }
 
+function simplifyTransaction(tx) {
+    let simplifiedTx = {
+      signature: tx.signature,
+      time: tx.timestamp,
+      action: tx.type,
+      from: '',
+      to: '',
+      inputAmount: '',
+      inputToken: '',
+      outputAmount: '',
+      outputToken: ''
+    };
+  
+    if (tx.type === 'SWAP') {
+      const swap = tx.events.swap;
+      if (swap && swap.innerSwaps && swap.innerSwaps.length > 0) {
+        const innerSwap = swap.innerSwaps[0];
+        
+        if (innerSwap.tokenInputs && innerSwap.tokenInputs.length > 0) {
+          const input = innerSwap.tokenInputs[0];
+          simplifiedTx.from = input.fromUserAccount;
+          simplifiedTx.inputAmount = input.tokenAmount;
+          simplifiedTx.inputToken = input.mint;
+        } else if (swap.nativeInput) {
+          simplifiedTx.from = swap.nativeInput.account;
+          simplifiedTx.inputAmount = swap.nativeInput.amount / 1e9;
+          simplifiedTx.inputToken = 'So11111111111111111111111111111111111111112'; // Native SOL mint address
+        }
+  
+        if (innerSwap.tokenOutputs && innerSwap.tokenOutputs.length > 0) {
+          const output = innerSwap.tokenOutputs[0];
+          simplifiedTx.to = output.toUserAccount;
+          simplifiedTx.outputAmount = output.tokenAmount;
+          simplifiedTx.outputToken = output.mint;
+        } else if (swap.nativeOutput) {
+          simplifiedTx.to = swap.nativeOutput.account;
+          simplifiedTx.outputAmount = swap.nativeOutput.amount / 1e9;
+          simplifiedTx.outputToken = 'So11111111111111111111111111111111111111112'; // Native SOL mint address
+        }
+      }
+    } else if (tx.tokenTransfers && tx.tokenTransfers.length > 0) {
+      const transfer = tx.tokenTransfers[0];
+      simplifiedTx.from = transfer.fromUserAccount;
+      simplifiedTx.to = transfer.toUserAccount;
+      simplifiedTx.inputAmount = transfer.tokenAmount;
+      simplifiedTx.inputToken = transfer.mint;
+    } else if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
+      const transfer = tx.nativeTransfers[0];
+      simplifiedTx.from = transfer.fromUserAccount;
+      simplifiedTx.to = transfer.toUserAccount;
+      simplifiedTx.inputAmount = transfer.amount / 1e9; // Convert lamports to SOL
+      simplifiedTx.inputToken = 'So11111111111111111111111111111111111111112'; // Native SOL mint address
+    }
+  
+    return simplifiedTx;
+  }
+  
+
 async function extractDetailedInformation(signature) {
   const apiKey = process.env[APIKeyEnvVar];
   const url = `https://api.helius.xyz/v0/transactions/?api-key=${apiKey}`;
@@ -83,60 +141,60 @@ function connectAndSubscribe(mentions) {
     });
   }
 
-async function main() {
-  const walletPubKey = process.env[walletPubKeyEnvVar];
-  const pingInterval = 25000; // 25 seconds
-
-  while (true) {
-    try {
-      const ws = await connectAndSubscribe([walletPubKey]);
-
-      const pingTimer = setInterval(() => {
-        ws.ping();
-      }, pingInterval);
-
-      ws.on('message', async (message) => {
-        const messageData = JSON.parse(message);
-        const params = messageData.params;
-        if (!params || !params.result || !params.result.value) return;
-
-        const value = params.result.value;
-        const signature = value.signature;
-
-        if (signature) {
-          // Print the signature of every transaction detected
-          console.log(`Transaction Signature: ${signature}`);
-
-          const detailedInfo = await extractDetailedInformation(signature);
-
-          if (detailedInfo) {
-              logTransaction(detailedInfo);
-              // Display the detailed information
-              console.log('Transaction Details:');
-              console.log(JSON.stringify(detailedInfo, null, 2));
-              console.log('------------------------');
-          }
-        }
-      });
-
-      ws.on('close', () => {
-        clearInterval(pingTimer);
-        console.log('Connection closed, reconnecting...');
-      });
-
-      await new Promise((resolve) => {
-        process.on('SIGINT', () => {
-          console.log('Interrupt received, shutting down...');
-          ws.close();
-          resolve();
+  async function main() {
+    const walletPubKey = process.env[walletPubKeyEnvVar];
+    const pingInterval = 25000; // 25 seconds
+    let ws;
+  
+    process.on('SIGINT', () => {
+      console.log('Interrupt received, shutting down...');
+      if (ws) {
+        ws.close();
+      }
+      process.exit(0);
+    });
+  
+    while (true) {
+      try {
+        ws = await connectAndSubscribe([walletPubKey]);
+  
+        const pingTimer = setInterval(() => {
+          ws.ping();
+        }, pingInterval);
+  
+        ws.on('message', async (message) => {
+            const messageData = JSON.parse(message);
+            const params = messageData.params;
+            if (!params || !params.result || !params.result.value) return;
+        
+            const value = params.result.value;
+            const signature = value.signature;
+        
+            if (signature) {
+              const detailedInfo = await extractDetailedInformation(signature);
+        
+              if (detailedInfo) {
+                logTransaction(detailedInfo);
+                const simplifiedTx = simplifyTransaction(detailedInfo);
+                console.log(`${simplifiedTx.signature} - ${simplifiedTx.time} - ${simplifiedTx.action} - ${simplifiedTx.from} - ${simplifiedTx.to} - Input: ${simplifiedTx.inputAmount} ${simplifiedTx.inputToken} - Output: ${simplifiedTx.outputAmount} ${simplifiedTx.outputToken}`);
+              }
+            }
+          });
+  
+        ws.on('close', () => {
+          clearInterval(pingTimer);
+          console.log('Connection closed, reconnecting...');
         });
-      });
-
-    } catch (error) {
-      console.error('Failed to connect:', error);
-      await new Promise(resolve => setTimeout(resolve, 3000));
+  
+        await new Promise((resolve) => {
+          ws.on('close', resolve);
+        });
+  
+      } catch (error) {
+        console.error('Failed to connect:', error);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
     }
   }
-}
-
-main().catch(console.error);
+  
+  main().catch(console.error);
