@@ -1,18 +1,4 @@
-require('dotenv').config(); // Load environment variables
-
-const reloadEnv = () => {
-  // Delete the specific environment variables
-  delete process.env.API_KEY;
-  delete process.env.WALLET_PUB_KEY;
-
-  // Reload .env file
-  require('dotenv').config();
-};
-
-// Call this function before using the environment variables
-reloadEnv();
-
-  
+require('dotenv').config();
 const { Connection, PublicKey } = require('@solana/web3.js');
 const WebSocket = require('ws');
 const fs = require('fs');
@@ -21,7 +7,6 @@ const axios = require('axios'); // You'll need to install this package
 const WebSocketScheme = 'wss';
 const WebSocketHost = 'mainnet.helius-rpc.com';
 const APIKeyEnvVar = 'API_KEY';
-const walletPubKeyEnvVar = "WALLET_PUB_KEY"
 
 function logTransaction(tx) {
   const jsonData = JSON.stringify(tx, null, 2);
@@ -155,23 +140,10 @@ function connectAndSubscribe(mentions) {
     });
   }
 
-function isSpecificTransaction(simplifiedTx) {
-    return simplifiedTx.action === 'TRANSFER' && 
-           simplifiedTx.outputAmount === 105 && 
-           simplifiedTx.outputToken === 'So11111111111111111111111111111111111111112';
-  }
-
-  
-  
   async function main() {
-    const initialWallet = process.env[walletPubKeyEnvVar];
-    let monitoredWallets = [initialWallet];
+    const walletPubKey = "" 
     const pingInterval = 25000; // 25 seconds
     let ws;
-
-    console.log('API_KEY:', process.env.API_KEY);
-    console.log('WALLET_PUB_KEY:', process.env.WALLET_PUB_KEY);
-    
   
     process.on('SIGINT', () => {
       console.log('Interrupt received, shutting down...');
@@ -183,49 +155,30 @@ function isSpecificTransaction(simplifiedTx) {
   
     while (true) {
       try {
-        ws = await connectAndSubscribe(monitoredWallets);
+        ws = await connectAndSubscribe([walletPubKey]);
   
         const pingTimer = setInterval(() => {
           ws.ping();
         }, pingInterval);
   
         ws.on('message', async (message) => {
-          const messageData = JSON.parse(message);
-          const params = messageData.params;
-          if (!params || !params.result || !params.result.value) return;
-      
-          const value = params.result.value;
-          const signature = value.signature;
-      
-          if (signature) {
-            const detailedInfo = await extractDetailedInformation(signature);
-      
-            if (detailedInfo) {
-              logTransaction(detailedInfo);
-              const simplifiedTx = simplifyTransaction(detailedInfo);
-              
-              // Determine which monitored wallet is involved in the transaction
-              const involvedWallet = monitoredWallets.find(wallet => 
-                wallet === simplifiedTx.from || wallet === simplifiedTx.to
-              );
-              
-              console.log(`Wallet: ${involvedWallet}`);
-              console.log(`${simplifiedTx.signature} - ${simplifiedTx.time} - ${simplifiedTx.action} - ${simplifiedTx.from} - ${simplifiedTx.to} - Input: ${simplifiedTx.inputAmount} ${simplifiedTx.inputToken} - Output: ${simplifiedTx.outputAmount} ${simplifiedTx.outputToken}`);
-              
-              if (isSpecificTransaction(simplifiedTx)) {
-                console.log('Specific transaction detected!');
-                const newWallet = simplifiedTx.to;
-                if (!monitoredWallets.includes(newWallet)) {
-                  monitoredWallets.push(newWallet);
-                  console.log(`Added new wallet to monitor: ${newWallet}`);
-                  
-                  // Reconnect WebSocket with updated wallet list
-                  ws.close();
-                }
+            const messageData = JSON.parse(message);
+            const params = messageData.params;
+            if (!params || !params.result || !params.result.value) return;
+        
+            const value = params.result.value;
+            const signature = value.signature;
+        
+            if (signature) {
+              const detailedInfo = await extractDetailedInformation(signature);
+        
+              if (detailedInfo) {
+                logTransaction(detailedInfo);
+                const simplifiedTx = simplifyTransaction(detailedInfo);
+                console.log(`${simplifiedTx.signature} - ${simplifiedTx.time} - ${simplifiedTx.action} - ${simplifiedTx.from} - ${simplifiedTx.to} - Input: ${simplifiedTx.inputAmount} ${simplifiedTx.inputToken} - Output: ${simplifiedTx.outputAmount} ${simplifiedTx.outputToken}`);
               }
             }
-          }
-        });
+          });
   
         ws.on('close', () => {
           clearInterval(pingTimer);
