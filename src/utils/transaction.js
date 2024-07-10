@@ -3,7 +3,7 @@ const { getTokenInfo } = require('./api');
 async function simplifyTransaction(tx, walletPool) {
     let simplifiedTx = {
         signature: tx.signature,
-        time: new Date(tx.timestamp * 1000).toLocaleString(), // Convert to human-readable format
+        time: new Date(tx.timestamp).toLocaleString(), // Use the provided ISO 8601 timestamp
         action: tx.type,
         from: '',
         to: '',
@@ -26,7 +26,7 @@ async function simplifyTransaction(tx, walletPool) {
         const swap = tx.events.swap;
         if (swap && swap.innerSwaps && swap.innerSwaps.length > 0) {
             const innerSwap = swap.innerSwaps[0];
-
+    
             if (innerSwap.tokenInputs && innerSwap.tokenInputs.length > 0) {
                 const input = innerSwap.tokenInputs[0];
                 simplifiedTx.from = input.fromUserAccount;
@@ -37,7 +37,7 @@ async function simplifyTransaction(tx, walletPool) {
                 simplifiedTx.inputAmount = swap.nativeInput.amount / 1e9;
                 simplifiedTx.inputToken = 'SOL'; // Native SOL mint address
             }
-
+    
             if (innerSwap.tokenOutputs && innerSwap.tokenOutputs.length > 0) {
                 const output = innerSwap.tokenOutputs[0];
                 simplifiedTx.to = output.toUserAccount;
