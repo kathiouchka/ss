@@ -21,7 +21,7 @@ const axios = require('axios'); // You'll need to install this package
 const WebSocketScheme = 'wss';
 const WebSocketHost = 'mainnet.helius-rpc.com';
 const APIKeyEnvVar = 'API_KEY';
-const walletPubKeysEnvVar = "WALLET_PUB_KEY"
+const walletPubKeyEnvVar = "WALLET_PUB_KEY"
 
 function logTransaction(tx) {
   const jsonData = JSON.stringify(tx, null, 2);
@@ -161,139 +161,86 @@ function isSpecificTransaction(simplifiedTx) {
            simplifiedTx.outputToken === 'So11111111111111111111111111111111111111112';
   }
 
-
   
-  function isTokenMint(tx) {
-  return tx.type === 'TOKEN_MINT';
-}
+  
+  async function main() {
+    const initialWallet = process.env[walletPubKeyEnvVar];
+    let monitoredWallets = [initialWallet];
+    const pingInterval = 25000; // 25 seconds
+    let ws;
 
-function isPoolCreation(tx) {
-  // This is a simplified check. You may need to adjust based on the specific DEX you're monitoring
-  return tx.type === 'UNKNOWN' && tx.instructions.some(inst => inst.programId === 'YOUR_DEX_PROGRAM_ID');
-}
-
-async function buyToken(inputMint, outputMint, amount) {
-  try {
-    const response = await axios.get(`${JUP_API_BASE_URL}/quote`, {
-      params: {
-        inputMint,
-        outputMint,
-        amount,
-        slippageBps: 50
+    console.log('API_KEY:', process.env.API_KEY);
+    console.log('WALLET_PUB_KEY:', process.env.WALLET_PUB_KEY);
+    
+  
+    process.on('SIGINT', () => {
+      console.log('Interrupt received, shutting down...');
+      if (ws) {
+        ws.close();
       }
+      process.exit(0);
     });
-    // Execute the transaction using Jupiter API
-    // This is a placeholder. You'll need to implement the actual transaction execution
-    console.log('Buying token:', response.data);
-  } catch (error) {
-    console.error('Error buying token:', error);
-  }
-}
-
-async function sellToken(inputMint, outputMint, amount) {
-  try {
-    const response = await axios.get(`${JUP_API_BASE_URL}/quote`, {
-      params: {
-        inputMint,
-        outputMint,
-        amount,
-        slippageBps: 50
-      }
-    });
-    // Execute the transaction using Jupiter API
-    // This is a placeholder. You'll need to implement the actual transaction execution
-    console.log('Selling token:', response.data);
-  } catch (error) {
-    console.error('Error selling token:', error);
-  }
-}
-
-async function main() {
-  const walletPubKeys = process.env[walletPubKeysEnvVar].split(',').map(key => key.trim());
-  let monitoredWallets = [walletPubKeys];
-  let newTokens = new Map(); // Map to store new token mints
-  let lastTransactions = new Map(); // Map to store last transaction for each token
-  const pingInterval = 25000; // 25 seconds
-  let ws;
-
-  process.on('SIGINT', () => {
-    console.log('Interrupt received, shutting down...');
-    if (ws) {
-      ws.close();
-    }
-    process.exit(0);
-  });
-
-  while (true) {
-    try {
-      ws = await connectAndSubscribe(monitoredWallets);
-
-      const pingTimer = setInterval(() => {
-        ws.ping();
-      }, pingInterval);
-
-      ws.on('message', async (message) => {
-        const messageData = JSON.parse(message);
-        const params = messageData.params;
-        if (!params || !params.result || !params.result.value) return;
-    
-        const value = params.result.value;
-        const signature = value.signature;
-    
-        if (signature) {
-          const detailedInfo = await extractDetailedInformation(signature);
-    
-          if (detailedInfo) {
-            logTransaction(detailedInfo);
-            const simplifiedTx = simplifyTransaction(detailedInfo);
-            
-            console.log(`${simplifiedTx.signature} - ${simplifiedTx.time} - ${simplifiedTx.action} - ${simplifiedTx.from} - ${simplifiedTx.to} - Input: ${simplifiedTx.inputAmount} ${simplifiedTx.inputToken} - Output: ${simplifiedTx.outputAmount} ${simplifiedTx.outputToken}`);
-            
-            if (isTokenMint(detailedInfo)) {
-              const tokenMint = detailedInfo.tokenTransfers[0].mint;
-              newTokens.set(tokenMint, { createdAt: Date.now(), poolCreated: false });
-              console.log(`New token minted: ${tokenMint}`);
-            }
-
-            if (isPoolCreation(detailedInfo)) {
-              const tokenMint = detailedInfo.tokenTransfers[0].mint;
-              if (newTokens.has(tokenMint)) {
-                newTokens.get(tokenMint).poolCreated = true;
-                console.log(`Pool created for token: ${tokenMint}`);
-                await buyToken('SOL_MINT_ADDRESS', tokenMint, 'AMOUNT_TO_BUY');
-                monitoredWallets.push(simplifiedTx.to);
+  
+    while (true) {
+      try {
+        ws = await connectAndSubscribe(monitoredWallets);
+  
+        const pingTimer = setInterval(() => {
+          ws.ping();
+        }, pingInterval);
+  
+        ws.on('message', async (message) => {
+          const messageData = JSON.parse(message);
+          const params = messageData.params;
+          if (!params || !params.result || !params.result.value) return;
+      
+          const value = params.result.value;
+          const signature = value.signature;
+      
+          if (signature) {
+            const detailedInfo = await extractDetailedInformation(signature);
+      
+            if (detailedInfo) {
+              logTransaction(detailedInfo);
+              const simplifiedTx = simplifyTransaction(detailedInfo);
+              
+              // Determine which monitored wallet is involved in the transaction
+              const involvedWallet = monitoredWallets.find(wallet => 
+                wallet === simplifiedTx.from || wallet === simplifiedTx.to
+              );
+              
+              console.log(`Wallet: ${involvedWallet}`);
+              console.log(`${simplifiedTx.signature} - ${simplifiedTx.time} - ${simplifiedTx.action} - ${simplifiedTx.from} - ${simplifiedTx.to} - Input: ${simplifiedTx.inputAmount} ${simplifiedTx.inputToken} - Output: ${simplifiedTx.outputAmount} ${simplifiedTx.outputToken}`);
+              
+              if (isSpecificTransaction(simplifiedTx)) {
+                console.log('Specific transaction detected!');
+                const newWallet = simplifiedTx.to;
+                if (!monitoredWallets.includes(newWallet)) {
+                  monitoredWallets.push(newWallet);
+                  console.log(`Added new wallet to monitor: ${newWallet}`);
+                  
+                  // Reconnect WebSocket with updated wallet list
+                  ws.close();
+                }
               }
-            }
-
-            if (newTokens.has(simplifiedTx.inputToken) || newTokens.has(simplifiedTx.outputToken)) {
-              const tokenMint = newTokens.has(simplifiedTx.inputToken) ? simplifiedTx.inputToken : simplifiedTx.outputToken;
-              const currentAmount = simplifiedTx.inputToken === tokenMint ? simplifiedTx.inputAmount : simplifiedTx.outputAmount;
-
-              if (lastTransactions.has(tokenMint) && lastTransactions.get(tokenMint).amount === currentAmount) {
-                console.log(`Detected two consecutive transactions with same amount for token: ${tokenMint}`);
-                await sellToken(tokenMint, 'SOL_MINT_ADDRESS', currentAmount);
-              }
-
-              lastTransactions.set(tokenMint, { amount: currentAmount, timestamp: Date.now() });
             }
           }
-        }
-      });
-
-      ws.on('close', () => {
-        clearInterval(pingTimer);
-        console.log('Connection closed, reconnecting...');
-      });
-
-      await new Promise((resolve) => {
-        ws.on('close', resolve);
-      });
-
-    } catch (error) {
-      console.error('Failed to connect:', error);
-      await new Promise(resolve => setTimeout(resolve, 3000));
+        });
+  
+        ws.on('close', () => {
+          clearInterval(pingTimer);
+          console.log('Connection closed, reconnecting...');
+        });
+  
+        await new Promise((resolve) => {
+          ws.on('close', resolve);
+        });
+  
+      } catch (error) {
+        console.error('Failed to connect:', error);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
     }
   }
-}
-
-main().catch(console.error);
+  
+  main().catch(console.error);
