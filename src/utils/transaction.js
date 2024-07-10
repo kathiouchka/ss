@@ -35,21 +35,21 @@ async function simplifyTransaction(tx, walletPool) {
             } else if (swap.nativeInput) {
                 simplifiedTx.from = swap.nativeInput.account;
                 simplifiedTx.inputAmount = swap.nativeInput.amount / 1e9;
-                simplifiedTx.inputToken = 'SOL'; // Native SOL mint address
+                simplifiedTx.inputToken = 'SOL';
             }
     
             if (innerSwap.tokenOutputs && innerSwap.tokenOutputs.length > 0) {
                 const output = innerSwap.tokenOutputs[0];
-                simplifiedTx.to = output.toUserAccount;
+                simplifiedTx.to = output.fromUserAccount;
                 simplifiedTx.outputAmount = output.tokenAmount;
                 simplifiedTx.outputToken = await getTokenName(output.mint);
             } else if (swap.nativeOutput) {
                 simplifiedTx.to = swap.nativeOutput.account;
                 simplifiedTx.outputAmount = swap.nativeOutput.amount / 1e9;
-                simplifiedTx.outputToken = 'SOL'; // Native SOL mint address
+                simplifiedTx.outputToken = 'SOL';
             }
         }
-    } else if (tx.tokenTransfers && tx.tokenTransfers.length > 0) {
+    }else if (tx.tokenTransfers && tx.tokenTransfers.length > 0) {
         const transfer = tx.tokenTransfers[0];
         simplifiedTx.from = transfer.fromUserAccount;
         simplifiedTx.to = transfer.toUserAccount;
