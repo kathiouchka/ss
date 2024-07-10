@@ -117,12 +117,13 @@ async function extractDetailedInformation(signature) {
         }
     } catch (error) {
         console.error('Error fetching transaction details:', error);
+        console.error('Full error object:', JSON.stringify(error, null, 2));
     }
 
     return null;
 }
 
-function connectAndSubscribe(walletPool) {
+function connectAndSubscribe(walletAddress) {
     return new Promise((resolve, reject) => {
         const apiKey = process.env[APIKeyEnvVar];
         if (!apiKey) {
@@ -131,7 +132,7 @@ function connectAndSubscribe(walletPool) {
         }
 
         const url = `${WebSocketScheme}://${WebSocketHost}?api-key=${apiKey}`;
-        console.log(`connecting to ${url}`);
+        console.log(`Connecting to ${url} for wallet ${walletAddress}`);
 
         const ws = new WebSocket(url);
 
@@ -141,7 +142,7 @@ function connectAndSubscribe(walletPool) {
                 id: 1,
                 method: 'logsSubscribe',
                 params: [
-                    { mentions: Object.values(walletPool) },
+                    { mentions: [walletAddress] },
                     { commitment: 'finalized' }
                 ]
             };
@@ -160,10 +161,7 @@ function addWallet(name, publicKey) {
     if (!walletPool[name]) {
         walletPool[name] = publicKey;
         console.log(`Added wallet: ${name} (${publicKey})`);
-        // Reconnect to update the subscription
-        if (ws) {
-            ws.close();
-        }
+        setupConnection(name, publicKey);
     }
 }
 
@@ -171,33 +169,33 @@ function removeWallet(name) {
     if (walletPool[name]) {
         delete walletPool[name];
         console.log(`Removed wallet: ${name}`);
-        // Reconnect to update the subscription
-        if (ws) {
-            ws.close();
+        if (connections[name]) {
+            connections[name].ws.close();
+            clearInterval(connections[name].pingTimer);
+            delete connections[name];
         }
     }
 }
 
 async function main() {
     const pingInterval = 25000; // 25 seconds
+    let connections = {};
 
     process.on('SIGINT', () => {
         console.log('Interrupt received, shutting down...');
-        if (ws) {
-            ws.close();
-        }
+        Object.values(connections).forEach(conn => conn.ws.close());
         process.exit(0);
     });
 
-    while (true) {
+    async function setupConnection(name, address) {
         try {
-            ws = await connectAndSubscribe(walletPool);
-
+            const ws = await connectAndSubscribe(address);
             const pingTimer = setInterval(() => {
                 ws.ping();
             }, pingInterval);
 
             ws.on('message', async (message) => {
+                console.log('Received message:', message.toString('utf8'));
                 const messageData = JSON.parse(message);
                 const params = messageData.params;
                 if (!params || !params.result || !params.result.value) return;
@@ -218,18 +216,24 @@ async function main() {
 
             ws.on('close', () => {
                 clearInterval(pingTimer);
-                console.log('Connection closed, reconnecting...');
+                console.log(`Connection closed for ${name}, reconnecting...`);
+                delete connections[name];
+                setupConnection(name, address);
             });
 
-            await new Promise((resolve) => {
-                ws.on('close', resolve);
-            });
-
+            connections[name] = { ws, pingTimer };
         } catch (error) {
-            console.error('Failed to connect:', error);
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            console.error(`Failed to connect for ${name}:`, error);
+            setTimeout(() => setupConnection(name, address), 3000);
         }
     }
+
+    for (const [name, address] of Object.entries(walletPool)) {
+        await setupConnection(name, address);
+    }
+
+    // Keep the main process running
+    await new Promise(() => {});
 }
 
 main().catch(console.error);
