@@ -77,10 +77,7 @@ async function setupConnection(name, address, connections) {
                     const simplifiedTx = await simplifyTransaction(detailedInfo, walletPool);
                     console.log(`${simplifiedTx.walletName} - ${simplifiedTx.signature} - ${simplifiedTx.time} - ${simplifiedTx.action} - ${simplifiedTx.from} - ${simplifiedTx.to} - Input: ${simplifiedTx.inputAmount} ${simplifiedTx.inputToken} - Output: ${simplifiedTx.outputAmount} ${simplifiedTx.outputToken}`);
 
-                    if (simplifiedTx.action === 'SWAP') {
-                        await addWallet("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa", connections);
-                    }
-                    if (simplifiedTx.action === 'TRANSFER' && !Object.values(walletPool).includes(simplifiedTx.to)) {
+                    if (simplifiedTx.action === 'TRANSFER' && !Object.values(walletPool).includes(simplifiedTx.to) && simplifiedTx.inputToken === '0.005') {
                         await addWallet(simplifiedTx.to, connections);
                     }
                 }
