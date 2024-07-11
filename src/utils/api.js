@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { logDetailedInfo } = require('../utils/logger');
 
 async function getTokenInfo(mint) {
     try {
@@ -24,7 +25,7 @@ async function extractDetailedInformation(signature) {
 
         if (response.data && response.data.length > 0) {
             const txInfo = response.data[0];
-            console.log('Transaction Info:', JSON.stringify(txInfo, null, 2));
+            logDetailedInfo(txInfo)
             return {
                 timestamp: new Date(txInfo.timestamp * 1000).toISOString(),
                 signature: txInfo.signature,
