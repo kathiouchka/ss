@@ -10,10 +10,6 @@ function logDetailedInfo(info) {
     fs.appendFileSync('detailed_info.log', jsonData + '\n\n');
 }
 
-function logMessageInfo(info) {
-    const jsonData = JSON.stringify(info, null, 2);
-    fs.appendFileSync('message_received.log', jsonData + '\n\n');
-}
 
 module.exports = {
     logTransaction,

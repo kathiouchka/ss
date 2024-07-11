@@ -85,6 +85,13 @@ async function setupConnection(name, address, connections) {
                         await addWallet(simplifiedTx.to, connections);
                         // NEW WALLET -> WAIT FOR MINT
                     }
+                    if (simplifiedTx.action === 'TOKEN_MINT') {
+                        console.log("TOKEN MINTED\n")
+                        console.log("MINT ADRESS: ", simplifiedTx.to)
+                        // saving the mint adress for later
+                    }
+                
+                    
                 }
         
                 // Remove the signature from the set after some time to prevent memory growth

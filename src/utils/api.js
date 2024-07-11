@@ -25,6 +25,8 @@ async function extractDetailedInformation(signature) {
             transactions: [signature]
         });
 
+        logDetailedInfo({ fullResponseData: response.data });
+
         if (response.data && response.data.length > 0) {
             const txInfo = response.data[0];
             logDetailedInfo(txInfo)
