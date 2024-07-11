@@ -2,6 +2,7 @@ const WebSocket = require('ws');
 const { logTransaction, logDetailedInfo } = require('../utils/logger');
 const { simplifyTransaction } = require('../utils/transaction');
 const { extractDetailedInformation } = require('../utils/api');
+const { buyTokenWithJupiter } = require('./jupiterApi');
 const { WebSocketScheme, WebSocketHost, APIKeyEnvVar, walletPool } = require('../config'); // Import walletPool
 const processedSignatures = new Set();
 
@@ -67,6 +68,8 @@ async function setupConnection(name, address, connections) {
         
             const value = params.result.value;
             const signature = value.signature;
+            const newTokenMintAddress = null;
+            const sellerSwapFlag = 0;
         
             if (signature && !processedSignatures.has(signature)) {
                 processedSignatures.add(signature);
@@ -76,37 +79,50 @@ async function setupConnection(name, address, connections) {
                     logTransaction(detailedInfo);
                     const simplifiedTx = await simplifyTransaction(detailedInfo, walletPool);
                     console.log(`${simplifiedTx.walletName} - ${simplifiedTx.signature} - ${simplifiedTx.time} - ${simplifiedTx.action} - ${simplifiedTx.from} - ${simplifiedTx.to} - Input: ${simplifiedTx.inputAmount} ${simplifiedTx.inputToken} - Output: ${simplifiedTx.outputAmount} ${simplifiedTx.outputToken}`);
-
+            
                     // DETECTION HERE
-                    if (simplifiedTx.action === 'TRANSFER' && 
-                        !Object.values(walletPool).includes(simplifiedTx.to) && 
-                        simplifiedTx.inputToken === 'SOL' && 
-                        simplifiedTx.inputAmount === 0.005) {
+                    if (simplifiedTx.action === 'TRANSFER' &&
+                        !Object.values(walletPool).includes(simplifiedTx.to) &&
+                        simplifiedTx.inputToken === 'SOL' &&
+                        simplifiedTx.inputAmount === 0.0005) {
                         await addWallet(simplifiedTx.to, connections);
-                        // NEW WALLET -> WAIT FOR MINT
                     }
+            
                     if (simplifiedTx.action === 'TOKEN_MINT') {
-                        console.log("TOKEN MINTED\n")
-                        console.log("MINT ADRESS: ", simplifiedTx.to)
-                        // saving the mint adress for later
+                        console.log("TOKEN MINTED");
+                        console.log("MINT ADDRESS:", simplifiedTx.to);
+                        newTokenMintAddress = simplifiedTx.to;
                     }
-                
-                    
+            
+                    if (simplifiedTx.action === 'SWAP' && simplifiedTx.walletName === 'SELLER' && simplifiedTx.inputToken === newTokenMintAddress) {
+                        console.log("SELLER swapped the new token");
+                        sellerSwapFlag = true;
+                    }
+            
+                    if (simplifiedTx.action === 'TRANSFER' &&
+                        simplifiedTx.walletName === 'SELLER' &&
+                        simplifiedTx.to === walletPool['DISTRIB'] &&
+                        simplifiedTx.inputToken === newTokenMintAddress &&
+                        sellerSwapFlag) {
+                        console.log("SELLER transferred all new tokens to DISTRIB");
+                        // Call function to buy token
+                        await buyTokenWithJupiter(newTokenMintAddress);
+                    }
                 }
         
-                // Remove the signature from the set after some time to prevent memory growth
                 setTimeout(() => {
                     processedSignatures.delete(signature);
                 }, 60000); // Remove after 1 minute
             }
         });
-
+        
         ws.on('close', () => {
             clearInterval(pingTimer);
             console.log(`Connection closed for ${name}, reconnecting...`);
             delete connections[name];
             setupConnection(name, address, connections);
         });
+        
 
         connections[name] = { ws, pingTimer };
     } catch (error) {
@@ -129,7 +145,7 @@ async function setupConnections(walletPool) {
     }
 
     // Keep the main process running
-    await new Promise(() => {});
+    await new Promise(() => { });
 }
 
 module.exports = {
