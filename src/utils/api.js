@@ -12,6 +12,7 @@ async function getTokenInfo(mint) {
     return null;
 }
 
+
 async function extractDetailedInformation(signature) {
     const apiKey = process.env.API_KEY;
     const url = `https://api.helius.xyz/v0/transactions/?api-key=${apiKey}`;
@@ -23,6 +24,7 @@ async function extractDetailedInformation(signature) {
 
         if (response.data && response.data.length > 0) {
             const txInfo = response.data[0];
+            console.log('Transaction Info:', JSON.stringify(txInfo, null, 2));
             return {
                 timestamp: new Date(txInfo.timestamp * 1000).toISOString(),
                 signature: txInfo.signature,
@@ -39,6 +41,8 @@ async function extractDetailedInformation(signature) {
                 nativeTransfers: txInfo.nativeTransfers,
                 events: txInfo.events
             };
+        } else {
+            console.log('No transaction data received');
         }
     } catch (error) {
         console.error('Error fetching transaction details:', error);
