@@ -1,6 +1,7 @@
 const { getTokenInfo } = require('./api');
 
 async function simplifyTransaction(tx, walletPool) {
+    console.log('Simplifying transaction:', JSON.stringify(tx, null, 2));
     let simplifiedTx = {
         signature: tx.signature,
         time: new Date(tx.timestamp).toLocaleString(), // Use the provided ISO 8601 timestamp
@@ -26,7 +27,7 @@ async function simplifyTransaction(tx, walletPool) {
         const swap = tx.events.swap;
         if (swap && swap.innerSwaps && swap.innerSwaps.length > 0) {
             const innerSwap = swap.innerSwaps[0];
-    
+
             if (innerSwap.tokenInputs && innerSwap.tokenInputs.length > 0) {
                 const input = innerSwap.tokenInputs[0];
                 simplifiedTx.from = input.fromUserAccount;
@@ -37,7 +38,7 @@ async function simplifyTransaction(tx, walletPool) {
                 simplifiedTx.inputAmount = swap.nativeInput.amount / 1e9;
                 simplifiedTx.inputToken = 'SOL';
             }
-    
+
             if (innerSwap.tokenOutputs && innerSwap.tokenOutputs.length > 0) {
                 const output = innerSwap.tokenOutputs[0];
                 simplifiedTx.to = output.fromUserAccount;
@@ -49,7 +50,21 @@ async function simplifyTransaction(tx, walletPool) {
                 simplifiedTx.outputToken = 'SOL';
             }
         }
-    }else if (tx.tokenTransfers && tx.tokenTransfers.length > 0) {
+    } else if (tx.type === 'TRANSFER') {
+        if (tx.tokenTransfers && tx.tokenTransfers.length > 0) {
+            const transfer = tx.tokenTransfers[0];
+            simplifiedTx.from = transfer.fromUserAccount;
+            simplifiedTx.to = transfer.toUserAccount;
+            simplifiedTx.inputAmount = transfer.tokenAmount;
+            simplifiedTx.inputToken = await getTokenName(transfer.mint);
+        } else if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
+            const transfer = tx.nativeTransfers[0];
+            simplifiedTx.from = transfer.fromUserAccount;
+            simplifiedTx.to = transfer.toUserAccount;
+            simplifiedTx.inputAmount = transfer.amount / 1e9; // Convert lamports to SOL
+            simplifiedTx.inputToken = 'SOL';
+        }
+    } else if (tx.tokenTransfers && tx.tokenTransfers.length > 0) {
         const transfer = tx.tokenTransfers[0];
         simplifiedTx.from = transfer.fromUserAccount;
         simplifiedTx.to = transfer.toUserAccount;

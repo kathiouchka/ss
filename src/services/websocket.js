@@ -3,6 +3,7 @@ const { logTransaction } = require('../utils/logger');
 const { simplifyTransaction } = require('../utils/transaction');
 const { extractDetailedInformation } = require('../utils/api');
 const { WebSocketScheme, WebSocketHost, APIKeyEnvVar, walletPool } = require('../config'); // Import walletPool
+const processedSignatures = new Set();
 
 async function connectAndSubscribe(walletAddress) {
     return new Promise((resolve, reject) => {
@@ -50,18 +51,26 @@ async function setupConnection(name, address, connections) {
             const messageData = JSON.parse(message);
             const params = messageData.params;
             if (!params || !params.result || !params.result.value) return;
-
+        
             const value = params.result.value;
             const signature = value.signature;
-
-            if (signature) {
+        
+            if (signature && !processedSignatures.has(signature)) {
+                processedSignatures.add(signature);
                 const detailedInfo = await extractDetailedInformation(signature);
-
+                console.log('Detailed Info:', JSON.stringify(detailedInfo, null, 2));
+        
                 if (detailedInfo) {
                     logTransaction(detailedInfo);
                     const simplifiedTx = await simplifyTransaction(detailedInfo, walletPool);
+                    console.log('Simplified Tx:', JSON.stringify(simplifiedTx, null, 2));
                     console.log(`${simplifiedTx.walletName} - ${simplifiedTx.signature} - ${simplifiedTx.time} - ${simplifiedTx.action} - ${simplifiedTx.from} - ${simplifiedTx.to} - Input: ${simplifiedTx.inputAmount} ${simplifiedTx.inputToken} - Output: ${simplifiedTx.outputAmount} ${simplifiedTx.outputToken}`);
                 }
+        
+                // Remove the signature from the set after some time to prevent memory growth
+                setTimeout(() => {
+                    processedSignatures.delete(signature);
+                }, 60000); // Remove after 1 minute
             }
         });
 
