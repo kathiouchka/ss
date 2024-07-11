@@ -1,5 +1,5 @@
 const WebSocket = require('ws');
-const { logTransaction, logDetailedInfo } = require('../utils/logger');
+const { log, LOG_LEVELS, logTransaction, logDetailedInfo } = require('../utils/logger');
 const { simplifyTransaction } = require('../utils/transaction');
 const { extractDetailedInformation } = require('../utils/api');
 const { buyTokenWithJupiter } = require('./jupiterApi');
@@ -8,7 +8,7 @@ const processedSignatures = new Set();
 
 
 function logRed(message) {
-    console.log('\x1b[31m%s\x1b[0m', message);
+    log(LOG_LEVELS.INFO, message);
 }
 
 // Add this function to add a new wallet to the pool and set up a connection
@@ -29,7 +29,7 @@ async function connectAndSubscribe(walletAddress) {
         }
 
         const url = `${WebSocketScheme}://${WebSocketHost}?api-key=${apiKey}`;
-        logRed(`Connecting to ${url} for wallet ${walletAddress}`);
+        log(LOG_LEVELS.INFO, `Connecting to ${url} for wallet ${walletAddress}`);
 
         const ws = new WebSocket(url);
 
@@ -61,16 +61,17 @@ async function setupConnection(name, address, connections) {
             ws.ping();
         }, 25000); // 25 seconds
         ws.on('message', async (message) => {
-            logRed('Received message: ' + message.toString('utf8'));
+            log(LOG_LEVELS.DEBUG, 'Received message: ' + message.toString('utf8'));
+
             const messageData = JSON.parse(message);
             const params = messageData.params;
             if (!params || !params.result || !params.result.value) return;
-        
+
             const value = params.result.value;
             const signature = value.signature;
             const newTokenMintAddress = null;
             const sellerSwapFlag = 0;
-        
+
             if (signature && !processedSignatures.has(signature)) {
                 processedSignatures.add(signature);
                 const detailedInfo = await extractDetailedInformation(signature);
@@ -78,8 +79,8 @@ async function setupConnection(name, address, connections) {
                 if (detailedInfo) {
                     logTransaction(detailedInfo);
                     const simplifiedTx = await simplifyTransaction(detailedInfo, walletPool);
-                    console.log(`${simplifiedTx.walletName} - ${simplifiedTx.signature} - ${simplifiedTx.time} - ${simplifiedTx.action} - ${simplifiedTx.from} - ${simplifiedTx.to} - Input: ${simplifiedTx.inputAmount} ${simplifiedTx.inputToken} - Output: ${simplifiedTx.outputAmount} ${simplifiedTx.outputToken}`);
-            
+                    log(LOG_LEVELS.INFO, `${simplifiedTx.walletName} - ${simplifiedTx.signature} - ${simplifiedTx.time} - ${simplifiedTx.action} - ${simplifiedTx.from} - ${simplifiedTx.to} - Input: ${simplifiedTx.inputAmount} ${simplifiedTx.inputToken} - Output: ${simplifiedTx.outputAmount} ${simplifiedTx.outputToken}`);
+
                     // DETECTION HERE
                     if (simplifiedTx.action === 'TRANSFER' &&
                         !Object.values(walletPool).includes(simplifiedTx.to) &&
@@ -87,46 +88,49 @@ async function setupConnection(name, address, connections) {
                         simplifiedTx.inputAmount === 0.0005) {
                         await addWallet(simplifiedTx.to, connections);
                     }
-            
+
                     if (simplifiedTx.action === 'TOKEN_MINT') {
-                        console.log("TOKEN MINTED");
-                        console.log("MINT ADDRESS:", simplifiedTx.to);
+
+                        log(LOG_LEVELS.INFO, "TOKEN MINTED");
+                        log(LOG_LEVELS.INFO, "MINT ADDRESS:", simplifiedTx.to);
                         newTokenMintAddress = simplifiedTx.to;
                     }
-            
+
                     if (simplifiedTx.action === 'SWAP' && simplifiedTx.walletName === 'SELLER' && simplifiedTx.inputToken === newTokenMintAddress) {
-                        console.log("SELLER swapped the new token");
+                        log(LOG_LEVELS.INFO, "SELLER swapped the new token");
                         sellerSwapFlag = true;
                     }
-            
+
                     if (simplifiedTx.action === 'TRANSFER' &&
                         simplifiedTx.walletName === 'SELLER' &&
                         simplifiedTx.to === walletPool['DISTRIB'] &&
                         simplifiedTx.inputToken === newTokenMintAddress &&
                         sellerSwapFlag) {
-                        console.log("SELLER transferred all new tokens to DISTRIB");
+
+                        log(LOG_LEVELS.INFO, "SELLER transferred all new tokens to DISTRIB");
                         // Call function to buy token
                         await buyTokenWithJupiter(newTokenMintAddress);
                     }
                 }
-        
+
                 setTimeout(() => {
                     processedSignatures.delete(signature);
                 }, 60000); // Remove after 1 minute
             }
         });
-        
+
         ws.on('close', () => {
             clearInterval(pingTimer);
-            console.log(`Connection closed for ${name}, reconnecting...`);
+            log(LOG_LEVELS.ERROR, `Connection closed for ${name}, reconnecting...`);
             delete connections[name];
             setupConnection(name, address, connections);
         });
-        
+
 
         connections[name] = { ws, pingTimer };
     } catch (error) {
-        console.error(`Failed to connect for ${name}:`, error);
+
+        log(LOG_LEVELS.ERROR, `Failed to connect for ${name}:`, error);
         setTimeout(() => setupConnection(name, address, connections), 3000);
     }
 }

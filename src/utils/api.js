@@ -16,7 +16,8 @@ async function getTokenInfo(mint) {
 
 async function extractDetailedInformation(signature) {
     const apiKey = process.env.API_KEY;
-    const url = `https://api-devnet.helius.xyz/v0/transactions/?api-key=${apiKey}`;
+    const url = `https://api.helius.xyz/v0/transactions/?api-key=${apiKey}`;
+    // const url = `https://api-devnet.helius.xyz/v0/transactions/?api-key=${apiKey}`;
     
     
 
