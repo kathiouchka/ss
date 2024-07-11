@@ -1,9 +1,23 @@
 const WebSocket = require('ws');
-const { logTransaction } = require('../utils/logger');
+const { logTransaction, logDetailedInfo } = require('../utils/logger');
 const { simplifyTransaction } = require('../utils/transaction');
 const { extractDetailedInformation } = require('../utils/api');
 const { WebSocketScheme, WebSocketHost, APIKeyEnvVar, walletPool } = require('../config'); // Import walletPool
 const processedSignatures = new Set();
+
+
+function logRed(message) {
+    console.log('\x1b[31m%s\x1b[0m', message);
+}
+
+// Add this function to add a new wallet to the pool and set up a connection
+async function addWallet(address, connections) {
+    const name = `Wallet_${Object.keys(walletPool).length + 1}`;
+    walletPool[name] = address;
+    await setupConnection(name, address, connections);
+    logRed(`Added new wallet: ${name} - ${address}`);
+
+}
 
 async function connectAndSubscribe(walletAddress) {
     return new Promise((resolve, reject) => {
@@ -14,7 +28,7 @@ async function connectAndSubscribe(walletAddress) {
         }
 
         const url = `${WebSocketScheme}://${WebSocketHost}?api-key=${apiKey}`;
-        console.log(`Connecting to ${url} for wallet ${walletAddress}`);
+        logRed(`Connecting to ${url} for wallet ${walletAddress}`);
 
         const ws = new WebSocket(url);
 
@@ -45,9 +59,8 @@ async function setupConnection(name, address, connections) {
         const pingTimer = setInterval(() => {
             ws.ping();
         }, 25000); // 25 seconds
-
         ws.on('message', async (message) => {
-            console.log('Received message:', message.toString('utf8'));
+            logRed('Received message: ' + message.toString('utf8'));
             const messageData = JSON.parse(message);
             const params = messageData.params;
             if (!params || !params.result || !params.result.value) return;
@@ -58,13 +71,18 @@ async function setupConnection(name, address, connections) {
             if (signature && !processedSignatures.has(signature)) {
                 processedSignatures.add(signature);
                 const detailedInfo = await extractDetailedInformation(signature);
-                console.log('Detailed Info:', JSON.stringify(detailedInfo, null, 2));
-        
+                logDetailedInfo(detailedInfo);
                 if (detailedInfo) {
                     logTransaction(detailedInfo);
                     const simplifiedTx = await simplifyTransaction(detailedInfo, walletPool);
-                    console.log('Simplified Tx:', JSON.stringify(simplifiedTx, null, 2));
                     console.log(`${simplifiedTx.walletName} - ${simplifiedTx.signature} - ${simplifiedTx.time} - ${simplifiedTx.action} - ${simplifiedTx.from} - ${simplifiedTx.to} - Input: ${simplifiedTx.inputAmount} ${simplifiedTx.inputToken} - Output: ${simplifiedTx.outputAmount} ${simplifiedTx.outputToken}`);
+
+                    if (simplifiedTx.action === 'SWAP') {
+                        await addWallet("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa", connections);
+                    }
+                    if (simplifiedTx.action === 'TRANSFER' && !Object.values(walletPool).includes(simplifiedTx.to)) {
+                        await addWallet(simplifiedTx.to, connections);
+                    }
                 }
         
                 // Remove the signature from the set after some time to prevent memory growth

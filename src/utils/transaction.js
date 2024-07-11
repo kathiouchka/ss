@@ -1,7 +1,6 @@
 const { getTokenInfo } = require('./api');
 
 async function simplifyTransaction(tx, walletPool) {
-    console.log('Simplifying transaction:', JSON.stringify(tx, null, 2));
     let simplifiedTx = {
         signature: tx.signature,
         time: new Date(tx.timestamp).toLocaleString(), // Use the provided ISO 8601 timestamp
