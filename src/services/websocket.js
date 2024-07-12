@@ -8,13 +8,6 @@ const { RateLimit } = require('async-sema');
 const { WebSocketScheme, WebSocketHost, APIKeyEnvVar, walletPool } = require('../config');
 const processedSignatures = new Set();
 
-const DISTRIB_ADDRESS = '';
-const BIG_WALLET_ADDRESS = '';
-const SELLER_ADDRESS = '';
-
-let newTokenMintAddress = null;
-let mintedWallets = new Set();
-
 // Rate limiters
 const rpcLimiter = RateLimit(10); // 10 RPC requests per second
 const apiLimiter = RateLimit(2);  // 2 API requests per second
@@ -142,58 +135,45 @@ async function processTransaction(signature, walletPool, connections) {
         const simplifiedTx = await simplifyTransaction(detailedInfo, walletPool);
         log(LOG_LEVELS.INFO, `${simplifiedTx.walletName} - ${simplifiedTx.signature} - ${simplifiedTx.time} - ${simplifiedTx.action} - ${simplifiedTx.from} - ${simplifiedTx.to} - Input: ${simplifiedTx.inputAmount} ${simplifiedTx.inputToken} - Output: ${simplifiedTx.outputAmount} ${simplifiedTx.outputToken}`);
 
-        // Check for incoming transfer to DISTRIB between 149.5 and 150.5 SOL
-        if (simplifiedTx.to === DISTRIB_ADDRESS && 
-            simplifiedTx.inputToken === 'SOL' && 
-            simplifiedTx.inputAmount >= 149.5 && 
+        // Permanent tracking of SELLER + DISTRIB
+        if (!walletPool['SELLER']) {
+            await addWallet(SELLER, connections);
+        }
+        if (!walletPool['DISTRIB']) {
+            await addWallet(DISTRIB, connections);
+        }
+
+        // Detect SWAP between 149.5 and 150.5 SOL
+        if (simplifiedTx.action === 'SWAP' &&
+            simplifiedTx.from === SELLER &&
+            simplifiedTx.to === DISTRIB &&
+            simplifiedTx.inputToken === 'SOL' &&
+            simplifiedTx.inputAmount >= 149.5 &&
             simplifiedTx.inputAmount <= 150.5) {
-            log(LOG_LEVELS.INFO, "Detected incoming transfer to DISTRIB. Starting to track BIG_WALLET.");
-            if (!walletPool['BIG_WALLET']) {
-                await addWallet(BIG_WALLET_ADDRESS, connections);
-            }
+            
+            NEW_TOKEN_ADDRESS = simplifiedTx.outputToken;
+            log(LOG_LEVELS.INFO, `New token detected: ${NEW_TOKEN_ADDRESS}`);
         }
 
-        // Check for BIG_WALLET transfer between 104.5 and 105.5 SOL
-        if (simplifiedTx.from === BIG_WALLET_ADDRESS && 
-            simplifiedTx.inputToken === 'SOL' && 
-            simplifiedTx.inputAmount >= 104.5 && 
-            simplifiedTx.inputAmount <= 105.5 &&
-            !mintedWallets.has(simplifiedTx.to)) {
-            log(LOG_LEVELS.INFO, "Detected BIG_WALLET transfer. Adding new MINTED_WALLET.");
-            await addWallet(simplifiedTx.to, connections);
-            mintedWallets.add(simplifiedTx.to);
+        // Detect transfer of NEW_TOKEN_ADDRESS from SELLER to DISTRIB
+        if (NEW_TOKEN_ADDRESS &&
+            simplifiedTx.action === 'TRANSFER' &&
+            simplifiedTx.from === SELLER &&
+            simplifiedTx.to === DISTRIB &&
+            simplifiedTx.inputToken === NEW_TOKEN_ADDRESS) {
+            
+            log(LOG_LEVELS.INFO, 'SELLER transferred the new token to DISTRIB. Initiating buy.');
+            await buyTokenWithJupiter(NEW_TOKEN_ADDRESS);
         }
 
-        // Check for token mint from MINTED_WALLET
-        if (mintedWallets.has(simplifiedTx.from) && simplifiedTx.action === 'TOKEN_MINT') {
-            log(LOG_LEVELS.INFO, "Detected new token mint from MINTED_WALLET.");
-            newTokenMintAddress = simplifiedTx.to;
-        }
-
-        // Check for SELLER sending newTokenMintAddress to DISTRIB
-        if (simplifiedTx.from === SELLER_ADDRESS && 
-            simplifiedTx.to === DISTRIB_ADDRESS && 
-            simplifiedTx.inputToken === newTokenMintAddress) {
-            log(LOG_LEVELS.INFO, "SELLER sent new token to DISTRIB. Initiating buy.");
-            await buyTokenWithJupiter(newTokenMintAddress);
-        }
-
-        // Check for SELLER receiving newTokenMintAddress from untracked wallet
-        if (simplifiedTx.to === SELLER_ADDRESS && 
-            simplifiedTx.inputToken === newTokenMintAddress && 
-            !Object.values(walletPool).includes(simplifiedTx.from)) {
-            log(LOG_LEVELS.INFO, "SELLER received new token from untracked wallet. Initiating sell.");
+        // Detect transfer of NEW_TOKEN_ADDRESS to SELLER
+        if (NEW_TOKEN_ADDRESS &&
+            simplifiedTx.action === 'TRANSFER' &&
+            simplifiedTx.to === SELLER &&
+            simplifiedTx.inputToken === NEW_TOKEN_ADDRESS) {
+            
+            log(LOG_LEVELS.INFO, 'SELLER received the new token. Initiating sell.');
             // Implement sell logic here
-        }
-
-        // Check for MINTED_WALLET sending back > 100 SOL to BIG_WALLET
-        if (mintedWallets.has(simplifiedTx.from) && 
-            simplifiedTx.to === BIG_WALLET_ADDRESS && 
-            simplifiedTx.inputToken === 'SOL' && 
-            simplifiedTx.inputAmount > 100) {
-            log(LOG_LEVELS.INFO, "MINTED_WALLET sent back > 100 SOL to BIG_WALLET. Removing from tracking.");
-            mintedWallets.delete(simplifiedTx.from);
-            // Implement logic to remove wallet from tracking
         }
     }
 }
