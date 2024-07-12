@@ -12,6 +12,10 @@ const processedSignatures = new Set();
 const rpcLimiter = RateLimit(10); // 10 RPC requests per second
 const apiLimiter = RateLimit(2);  // 2 API requests per second
 
+const SELLER = '9c1V72uBmUs2QFCpmamLqZVrYrLABB6dxr7TNqW1RiSc';
+const DISTRIB = '9c1V72uBmUs2QFCpmamLqZVrYrLABB6dxr7TNqW1RiS3';
+let NEW_TOKEN_ADDRESS = null;
+
 // Transaction queue
 const transactionQueue = new Queue(async (task, cb) => {
     try {
