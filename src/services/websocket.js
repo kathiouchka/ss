@@ -1,4 +1,5 @@
 const WebSocket = require('ws');
+const Queue = require('better-queue');
 const { log, LOG_LEVELS, logTransaction, logDetailedInfo } = require('../utils/logger');
 const { simplifyTransaction } = require('../utils/transaction');
 const { extractDetailedInformation } = require('../utils/api');
@@ -11,6 +12,17 @@ const processedSignatures = new Set();
 // Rate limiters
 const rpcLimiter = RateLimit(10); // 10 RPC requests per second
 const apiLimiter = RateLimit(2);  // 2 API requests per second
+
+// Transaction queue
+const transactionQueue = new Queue(async (task, cb) => {
+    try {
+        await processTransaction(task.signature, task.walletPool, task.connections);
+        cb(null, true);
+    } catch (error) {
+        log(LOG_LEVELS.ERROR, `Error processing transaction: ${error.message}`);
+        cb(error);
+    }
+}, { concurrent: 5 }); // Process 5 transactions concurrently
 
 function logRed(message) {
     log(LOG_LEVELS.INFO, message);
@@ -57,7 +69,7 @@ async function connectAndSubscribe(walletAddress) {
     });
 }
 
-async function setupConnection(name, address, connections) {
+async function setupConnection(name, address, connections, retryCount = 0) {
     try {
         const ws = await connectAndSubscribe(address);
         const pingTimer = setInterval(() => {
@@ -74,50 +86,10 @@ async function setupConnection(name, address, connections) {
 
             const value = params.result.value;
             const signature = value.signature;
-            let newTokenMintAddress = null;
-            let sellerSwapFlag = false;
 
             if (signature && !processedSignatures.has(signature)) {
                 processedSignatures.add(signature);
-                await apiLimiter(); // Rate limit API requests
-                const detailedInfo = await extractDetailedInformation(signature);
-                logDetailedInfo(detailedInfo);
-                if (detailedInfo) {
-                    logTransaction(detailedInfo);
-                    const simplifiedTx = await simplifyTransaction(detailedInfo, walletPool);
-                    log(LOG_LEVELS.INFO, `${simplifiedTx.walletName} - ${simplifiedTx.signature} - ${simplifiedTx.time} - ${simplifiedTx.action} - ${simplifiedTx.from} - ${simplifiedTx.to} - Input: ${simplifiedTx.inputAmount} ${simplifiedTx.inputToken} - Output: ${simplifiedTx.outputAmount} ${simplifiedTx.outputToken}`);
-
-                    // DETECTION HERE
-                    if (simplifiedTx.action === 'TRANSFER' &&
-                        !Object.values(walletPool).includes(simplifiedTx.to) &&
-                        simplifiedTx.inputToken === 'SOL' &&
-                        simplifiedTx.inputAmount === 105) {
-                        await addWallet(simplifiedTx.to, connections);
-                    }
-
-                    if (simplifiedTx.action === 'TOKEN_MINT') {
-                        log(LOG_LEVELS.INFO, "TOKEN MINTED");
-                        log(LOG_LEVELS.INFO, "MINT ADDRESS:", simplifiedTx.to);
-                        newTokenMintAddress = simplifiedTx.to;
-                    }
-
-                    if (simplifiedTx.action === 'SWAP' && simplifiedTx.walletName === 'SELLER' && simplifiedTx.inputToken === newTokenMintAddress) {
-                        log(LOG_LEVELS.INFO, "SELLER swapped the new token");
-                        sellerSwapFlag = true;
-                    }
-
-                    if (simplifiedTx.action === 'TRANSFER' &&
-                        simplifiedTx.walletName === 'SELLER' &&
-                        simplifiedTx.to === walletPool['DISTRIB'] &&
-                        simplifiedTx.inputToken === newTokenMintAddress &&
-                        sellerSwapFlag) {
-
-                        log(LOG_LEVELS.INFO, "SELLER transferred all new tokens to DISTRIB");
-                        // Call function to buy token
-                        await apiLimiter(); // Rate limit API requests
-                        await buyTokenWithJupiter(newTokenMintAddress);
-                    }
-                }
+                transactionQueue.push({ signature, walletPool, connections });
 
                 setTimeout(() => {
                     processedSignatures.delete(signature);
@@ -129,13 +101,61 @@ async function setupConnection(name, address, connections) {
             clearInterval(pingTimer);
             log(LOG_LEVELS.ERROR, `Connection closed for ${name}, reconnecting...`);
             delete connections[name];
-            setTimeout(() => setupConnection(name, address, connections), 3000);
+            const backoffTime = Math.min(1000 * Math.pow(2, retryCount), 60000); // Max 1 minute
+            setTimeout(() => setupConnection(name, address, connections, retryCount + 1), backoffTime);
         });
 
         connections[name] = { ws, pingTimer };
+        retryCount = 0; // Reset retry count on successful connection
     } catch (error) {
         log(LOG_LEVELS.ERROR, `Failed to connect for ${name}:`, error);
-        setTimeout(() => setupConnection(name, address, connections), 3000);
+        const backoffTime = Math.min(1000 * Math.pow(2, retryCount), 60000); // Max 1 minute
+        setTimeout(() => setupConnection(name, address, connections, retryCount + 1), backoffTime);
+    }
+}
+
+async function processTransaction(signature, walletPool, connections) {
+    await apiLimiter(); // Rate limit API requests
+    const detailedInfo = await extractDetailedInformation(signature);
+    logDetailedInfo(detailedInfo);
+    if (detailedInfo) {
+        logTransaction(detailedInfo);
+        const simplifiedTx = await simplifyTransaction(detailedInfo, walletPool);
+        log(LOG_LEVELS.INFO, `${simplifiedTx.walletName} - ${simplifiedTx.signature} - ${simplifiedTx.time} - ${simplifiedTx.action} - ${simplifiedTx.from} - ${simplifiedTx.to} - Input: ${simplifiedTx.inputAmount} ${simplifiedTx.inputToken} - Output: ${simplifiedTx.outputAmount} ${simplifiedTx.outputToken}`);
+
+        // DETECTION HERE
+        if (simplifiedTx.action === 'TRANSFER' &&
+            !Object.values(walletPool).includes(simplifiedTx.to) &&
+            simplifiedTx.inputToken === 'SOL' &&
+            simplifiedTx.inputAmount === 105) {
+            await addWallet(simplifiedTx.to, connections);
+        }
+
+        let newTokenMintAddress = null;
+        let sellerSwapFlag = false;
+
+        if (simplifiedTx.action === 'TOKEN_MINT') {
+            log(LOG_LEVELS.INFO, "TOKEN MINTED");
+            log(LOG_LEVELS.INFO, "MINT ADDRESS:", simplifiedTx.to);
+            newTokenMintAddress = simplifiedTx.to;
+        }
+
+        if (simplifiedTx.action === 'SWAP' && simplifiedTx.walletName === 'SELLER' && simplifiedTx.inputToken === newTokenMintAddress) {
+            log(LOG_LEVELS.INFO, "SELLER swapped the new token");
+            sellerSwapFlag = true;
+        }
+
+        if (simplifiedTx.action === 'TRANSFER' &&
+            simplifiedTx.walletName === 'SELLER' &&
+            simplifiedTx.to === walletPool['DISTRIB'] &&
+            simplifiedTx.inputToken === newTokenMintAddress &&
+            sellerSwapFlag) {
+
+            log(LOG_LEVELS.INFO, "SELLER transferred all new tokens to DISTRIB");
+            // Call function to buy token
+            await apiLimiter(); // Rate limit API requests
+            await buyTokenWithJupiter(newTokenMintAddress);
+        }
     }
 }
 
