@@ -35,7 +35,7 @@ async function simplifyTransaction(tx, walletPool) {
                 simplifiedTx.inputAmount = swap.nativeInput.amount / 1e9;
                 simplifiedTx.inputToken = 'SOL';
             }
-    
+
             if (swap.tokenOutputs && swap.tokenOutputs.length > 0) {
                 const output = swap.tokenOutputs[0];
                 simplifiedTx.to = output.userAccount;
@@ -85,15 +85,16 @@ async function simplifyTransaction(tx, walletPool) {
         simplifiedTx.inputToken = 'SOL'; // Native SOL mint address
     }
 
-   // Find the wallet name
-for (const [name, pubkey] of Object.entries(walletPool)) {
-    if (simplifiedTx.from === pubkey || simplifiedTx.to === pubkey) {
-        simplifiedTx.walletName = name;
-        break;
+    // Find the wallet name
+    for (const [name, pubkey] of Object.entries(walletPool)) {
+        if (simplifiedTx.from === pubkey || simplifiedTx.to === pubkey) {
+            simplifiedTx.walletName = name;
+            break;
+        }
     }
-}
 
     return simplifiedTx;
+    
 }
 
 module.exports = {

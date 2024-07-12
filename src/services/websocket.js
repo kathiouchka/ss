@@ -85,7 +85,7 @@ async function setupConnection(name, address, connections) {
                     if (simplifiedTx.action === 'TRANSFER' &&
                         !Object.values(walletPool).includes(simplifiedTx.to) &&
                         simplifiedTx.inputToken === 'SOL' &&
-                        simplifiedTx.inputAmount === 0.0005) {
+                        simplifiedTx.inputAmount === 105) {
                         await addWallet(simplifiedTx.to, connections);
                     }
 
