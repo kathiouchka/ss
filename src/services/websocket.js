@@ -3,21 +3,24 @@ const { log, LOG_LEVELS, logTransaction, logDetailedInfo } = require('../utils/l
 const { simplifyTransaction } = require('../utils/transaction');
 const { extractDetailedInformation } = require('../utils/api');
 const { buyTokenWithJupiter } = require('./jupiterApi');
-const { WebSocketScheme, WebSocketHost, APIKeyEnvVar, walletPool } = require('../config'); // Import walletPool
+const { RateLimit } = require('async-sema');
+const { WebSocketScheme, WebSocketHost, APIKeyEnvVar, walletPool } = require('../config');
+
 const processedSignatures = new Set();
 
+// Rate limiters
+const rpcLimiter = RateLimit(10); // 10 RPC requests per second
+const apiLimiter = RateLimit(2);  // 2 API requests per second
 
 function logRed(message) {
     log(LOG_LEVELS.INFO, message);
 }
 
-// Add this function to add a new wallet to the pool and set up a connection
 async function addWallet(address, connections) {
     const name = `Wallet_${Object.keys(walletPool).length + 1}`;
     walletPool[name] = address;
     await setupConnection(name, address, connections);
     logRed(`Added new wallet: ${name} - ${address}`);
-
 }
 
 async function connectAndSubscribe(walletAddress) {
@@ -60,7 +63,9 @@ async function setupConnection(name, address, connections) {
         const pingTimer = setInterval(() => {
             ws.ping();
         }, 25000); // 25 seconds
+
         ws.on('message', async (message) => {
+            await rpcLimiter(); // Rate limit RPC requests
             log(LOG_LEVELS.DEBUG, 'Received message: ' + message.toString('utf8'));
 
             const messageData = JSON.parse(message);
@@ -69,11 +74,12 @@ async function setupConnection(name, address, connections) {
 
             const value = params.result.value;
             const signature = value.signature;
-            const newTokenMintAddress = null;
-            const sellerSwapFlag = 0;
+            let newTokenMintAddress = null;
+            let sellerSwapFlag = false;
 
             if (signature && !processedSignatures.has(signature)) {
                 processedSignatures.add(signature);
+                await apiLimiter(); // Rate limit API requests
                 const detailedInfo = await extractDetailedInformation(signature);
                 logDetailedInfo(detailedInfo);
                 if (detailedInfo) {
@@ -90,7 +96,6 @@ async function setupConnection(name, address, connections) {
                     }
 
                     if (simplifiedTx.action === 'TOKEN_MINT') {
-
                         log(LOG_LEVELS.INFO, "TOKEN MINTED");
                         log(LOG_LEVELS.INFO, "MINT ADDRESS:", simplifiedTx.to);
                         newTokenMintAddress = simplifiedTx.to;
@@ -109,6 +114,7 @@ async function setupConnection(name, address, connections) {
 
                         log(LOG_LEVELS.INFO, "SELLER transferred all new tokens to DISTRIB");
                         // Call function to buy token
+                        await apiLimiter(); // Rate limit API requests
                         await buyTokenWithJupiter(newTokenMintAddress);
                     }
                 }
@@ -123,13 +129,11 @@ async function setupConnection(name, address, connections) {
             clearInterval(pingTimer);
             log(LOG_LEVELS.ERROR, `Connection closed for ${name}, reconnecting...`);
             delete connections[name];
-            setupConnection(name, address, connections);
+            setTimeout(() => setupConnection(name, address, connections), 3000);
         });
-
 
         connections[name] = { ws, pingTimer };
     } catch (error) {
-
         log(LOG_LEVELS.ERROR, `Failed to connect for ${name}:`, error);
         setTimeout(() => setupConnection(name, address, connections), 3000);
     }
