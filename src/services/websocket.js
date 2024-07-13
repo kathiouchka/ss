@@ -150,7 +150,6 @@ async function processTransaction(signature, walletPool, connections) {
         // Detect SWAP between 149.5 and 150.5 SOL
         if (simplifiedTx.action === 'SWAP' &&
             simplifiedTx.from === SELLER &&
-            simplifiedTx.to === DISTRIB &&
             simplifiedTx.inputToken === 'SOL' &&
             simplifiedTx.inputAmount >= 149.5 &&
             simplifiedTx.inputAmount <= 150.5) {
