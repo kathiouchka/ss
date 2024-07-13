@@ -1,5 +1,3 @@
-const { getTokenInfo } = require('./api');
-
 async function simplifyTransaction(tx, walletPool) {
     let simplifiedTx = {
         signature: tx.signature,
@@ -29,7 +27,7 @@ async function simplifyTransaction(tx, walletPool) {
                 const input = swap.tokenInputs[0];
                 simplifiedTx.from = input.userAccount;
                 simplifiedTx.inputAmount = input.rawTokenAmount.tokenAmount / Math.pow(10, input.rawTokenAmount.decimals);
-                simplifiedTx.inputToken = await getTokenName(input.mint);
+                simplifiedTx.inputToken = input.mint;
             } else if (swap.nativeInput) {
                 simplifiedTx.from = swap.nativeInput.account;
                 simplifiedTx.inputAmount = swap.nativeInput.amount / 1e9;
@@ -40,7 +38,7 @@ async function simplifyTransaction(tx, walletPool) {
                 const output = swap.tokenOutputs[0];
                 simplifiedTx.to = output.userAccount;
                 simplifiedTx.outputAmount = output.rawTokenAmount.tokenAmount / Math.pow(10, output.rawTokenAmount.decimals);
-                simplifiedTx.outputToken = await getTokenName(output.mint);
+                simplifiedTx.outputToken = output.mint;
             } else if (swap.nativeOutput) {
                 simplifiedTx.to = swap.nativeOutput.account;
                 simplifiedTx.outputAmount = swap.nativeOutput.amount / 1e9;
@@ -58,7 +56,7 @@ async function simplifyTransaction(tx, walletPool) {
             simplifiedTx.from = transfer.fromUserAccount;
             simplifiedTx.to = transfer.toUserAccount;
             simplifiedTx.inputAmount = transfer.tokenAmount;
-            simplifiedTx.inputToken = await getTokenName(transfer.mint);
+            simplifiedTx.inputToken = transfer.mint;
         } else if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
             // Similar logic for native transfers
             const transfer = tx.nativeTransfers.find(t =>
@@ -76,7 +74,7 @@ async function simplifyTransaction(tx, walletPool) {
         simplifiedTx.from = transfer.fromUserAccount;
         simplifiedTx.to = transfer.toUserAccount;
         simplifiedTx.inputAmount = transfer.tokenAmount;
-        simplifiedTx.inputToken = await getTokenName(transfer.mint);
+        simplifiedTx.inputToken = transfer.mint;
     } else if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
         const transfer = tx.nativeTransfers[0];
         simplifiedTx.from = transfer.fromUserAccount;
