@@ -15,6 +15,7 @@ const apiLimiter = RateLimit(2);  // 2 API requests per second
 const SELLER = '';
 const DISTRIB = '';
 let NEW_TOKEN_ADDRESS = null;
+let transferCount = 0;
 
 // Transaction queue
 const transactionQueue = new Queue(async (task, cb) => {
@@ -166,7 +167,8 @@ async function processTransaction(signature, walletPool, connections) {
             simplifiedTx.inputToken === NEW_TOKEN_ADDRESS) {
             
             log(LOG_LEVELS.INFO, 'SELLER transferred the new token to DISTRIB. Initiating buy.');
-            await buyTokenWithJupiter(NEW_TOKEN_ADDRESS);
+            const bought = await buyTokenWithJupiter(NEW_TOKEN_ADDRESS);
+            log(LOG_LEVELS.INFO, bought);
         }
 
         // Detect transfer of NEW_TOKEN_ADDRESS to SELLER
@@ -175,8 +177,13 @@ async function processTransaction(signature, walletPool, connections) {
             simplifiedTx.to === SELLER &&
             simplifiedTx.inputToken === NEW_TOKEN_ADDRESS) {
             
-            log(LOG_LEVELS.INFO, 'SELLER received the new token. Initiating sell.');
-            // Implement sell logic here
+            transferCount++;
+            log(LOG_LEVELS.INFO, `SELLER APIreceived the new token. Transfer count: ${transferCount}`);
+            if (transferCount >= 2) {
+                log(LOG_LEVELS.INFO, 'Two transfers confirmed. Initiating sell.');
+                // Implement sell logic here
+                transferCount = 0; // Reset transfer count after initiating sell
+            }
         }
     }
 }

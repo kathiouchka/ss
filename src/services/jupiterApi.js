@@ -19,11 +19,14 @@ async function buyTokenWithJupiter(mintAddress) {
             console.log('Quote received:', response.data);
             // Here you would typically send this quote to be executed
             // This part depends on how you want to interact with Jupiter's swap API
+            return true; // Indicate that the purchase was successful
         } else {
             console.log('No quote data received');
+            return false; // Indicate that the purchase was not successful
         }
     } catch (error) {
         console.error('Error fetching Jupiter quote:', error);
+        return false; // Indicate that the purchase was not successful
     }
 }
 
