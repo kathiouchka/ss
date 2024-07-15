@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 const LOG_LEVELS = {
     ERROR: 'ERROR',
@@ -14,9 +14,9 @@ function formatLogMessage(level, message) {
 }
 
 function logToFile(fileName, message) {
-    const logDir = path.join(__dirname, '..', '..', 'logs');
+    const logDir = path.join(process.cwd(), 'logs');
     if (!fs.existsSync(logDir)) {
-        fs.mkdirSync(logDir);
+        fs.mkdirSync(logDir, { recursive: true });
     }
     fs.appendFileSync(path.join(logDir, fileName), message);
 }
@@ -53,7 +53,7 @@ function logDetailedInfo(info) {
     logToFile('detailed_info.log', jsonData + '\n\n');
 }
 
-module.exports = {
+export {
     LOG_LEVELS,
     log,
     logTransaction,

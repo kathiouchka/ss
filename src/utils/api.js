@@ -1,5 +1,5 @@
-const axios = require('axios');
-const { logDetailedInfo } = require('../utils/logger');
+import axios from 'axios';
+import { logDetailedInfo } from '../utils/logger.js';
 
 async function getTokenInfo(mint) {
     try {
@@ -13,13 +13,9 @@ async function getTokenInfo(mint) {
     return null;
 }
 
-
 async function extractDetailedInformation(signature) {
     const apiKey = process.env.API_KEY;
     const url = `https://api.helius.xyz/v0/transactions/?api-key=${apiKey}`;
-    // const url = `https://api-devnet.helius.xyz/v0/transactions/?api-key=${apiKey}`;
-    
-    
 
     try {
         const response = await axios.post(url, {
@@ -30,7 +26,7 @@ async function extractDetailedInformation(signature) {
 
         if (response.data && response.data.length > 0) {
             const txInfo = response.data[0];
-            logDetailedInfo(txInfo)
+            logDetailedInfo(txInfo);
             return {
                 timestamp: new Date(txInfo.timestamp * 1000).toISOString(),
                 signature: txInfo.signature,
@@ -58,7 +54,7 @@ async function extractDetailedInformation(signature) {
     return null;
 }
 
-module.exports = {
+export {
     getTokenInfo,
     extractDetailedInformation
 };
