@@ -1,6 +1,8 @@
-require('dotenv').config();
-const { setupConnections } = require('./services/websocket');
-const { walletPool } = require('./config');
+import dotenv from 'dotenv';
+import { setupConnections } from './services/websocket.js';
+import { walletPool } from './config.js';
+
+dotenv.config();
 
 async function main() {
     await setupConnections(walletPool);

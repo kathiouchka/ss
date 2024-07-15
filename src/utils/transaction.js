@@ -95,6 +95,6 @@ async function simplifyTransaction(tx, walletPool) {
     
 }
 
-module.exports = {
+export {
     simplifyTransaction
 };

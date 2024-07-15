@@ -1,19 +1,21 @@
-const WebSocket = require('ws');
-const Queue = require('better-queue');
-const { log, LOG_LEVELS, logTransaction, logDetailedInfo } = require('../utils/logger');
-const { simplifyTransaction } = require('../utils/transaction');
-const { extractDetailedInformation } = require('../utils/api');
-const { buyTokenWithJupiter } = require('./jupiterApi');
-const { RateLimit } = require('async-sema');
-const { WebSocketScheme, WebSocketHost, APIKeyEnvVar, walletPool } = require('../config');
+import WebSocket from 'ws';
+import Queue from 'better-queue';
+import { log, LOG_LEVELS, logTransaction, logDetailedInfo } from '../utils/logger.js';
+import { simplifyTransaction } from '../utils/transaction.js';
+import { extractDetailedInformation } from '../utils/api.js';
+import { buyTokenWithJupiter } from './jupiterApi.js';
+import { RateLimit } from 'async-sema';
+import { WebSocketScheme, WebSocketHost, APIKeyEnvVar, walletPool } from '../config.js';
+
 const processedSignatures = new Set();
+
 
 // Rate limiters
 const rpcLimiter = RateLimit(10); // 10 RPC requests per second
 const apiLimiter = RateLimit(2);  // 2 API requests per second
 
-const SELLER = '';
-const DISTRIB = '';
+const SELLER = walletPool.SELLER;
+const DISTRIB = walletPool.DISTRIB;
 let NEW_TOKEN_ADDRESS = null;
 let transferCount = 0;
 
@@ -79,6 +81,9 @@ async function setupConnection(name, address, connections, retryCount = 0) {
         const pingTimer = setInterval(() => {
             ws.ping();
         }, 25000); // 25 seconds
+
+        console.log("Distrib adress = " + DISTRIB)
+        console.log("SELLER adress = " + SELLER)
         
         const recentMessages = new Set();
         ws.on('message', async (message) => {
@@ -167,7 +172,7 @@ async function processTransaction(signature, walletPool, connections) {
             simplifiedTx.inputToken === NEW_TOKEN_ADDRESS) {
             
             log(LOG_LEVELS.INFO, 'SELLER transferred the new token to DISTRIB. Initiating buy.');
-            const bought = await buyTokenWithJupiter(NEW_TOKEN_ADDRESS);
+            const bought = await buyTokenWithJupiter(NEW_TOKEN_ADDRESS, 10000000, "buy");
             log(LOG_LEVELS.INFO, bought);
         }
 
@@ -178,7 +183,7 @@ async function processTransaction(signature, walletPool, connections) {
             simplifiedTx.inputToken === NEW_TOKEN_ADDRESS) {
             
             transferCount++;
-            log(LOG_LEVELS.INFO, `SELLER APIreceived the new token. Transfer count: ${transferCount}`);
+            log(LOG_LEVELS.INFO, `SELLER received the new token. Transfer count: ${transferCount}`);
             if (transferCount >= 2) {
                 log(LOG_LEVELS.INFO, 'Two transfers confirmed. Initiating sell.');
                 // Implement sell logic here
@@ -205,6 +210,6 @@ async function setupConnections(walletPool) {
     await new Promise(() => { });
 }
 
-module.exports = {
+export  {
     setupConnections
 };

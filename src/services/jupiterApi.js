@@ -1,22 +1,14 @@
-const { Connection, Keypair, VersionedTransaction, PublicKey, Transaction, sendAndConfirmRawTransaction, sendAndConfirmTransaction, LAMPORTS_PER_SOL } = require('@solana/web3.js');
-const fetch = require('cross-fetch');
-const { Wallet } = require('@project-serum/anchor');
-const bs58 = require('bs58');
-const dotenv = require('dotenv');
-
-dotenv.config();
-
 import fetch from "node-fetch";
+import { Connection, Keypair, VersionedTransaction, PublicKey, Transaction, sendAndConfirmRawTransaction, sendAndConfirmTransaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import bs58 from 'bs58';
 import dotenv from 'dotenv';
 import { Wallet } from '@project-serum/anchor';
 
 dotenv.config();
-//For test, my wallet:        
-//For test, use DLM token:    
+
 const solAddress = "So11111111111111111111111111111111111111112";
 // Solana gas fee
-const SOLANA_GAS_FEE_PRICE = 0.000005 * LAMPORTS_PER_SOL;  //Solana accounts require a minimum amount of SOL in order to exists on the blockchain, this is called rent-exempt account.
+const SOLANA_GAS_FEE_PRICE = 0.000005 * LAMPORTS_PER_SOL;  //Solana accounts require a minimum amount of SOL in order to exist on the blockchain, this is called rent-exempt account.
 let slipTarget = 5;
 
 const privateKey = process.env.PRIVATE_KEY;
@@ -26,7 +18,6 @@ if (!privateKey) {
 
 const RPC_ENDPOINT = `https://mainnet.helius-rpc.com/?api-key=${process.env.API_KEY}`;
 
-
 const connection = new Connection(RPC_ENDPOINT, 'confirmed', {
     commitment: 'confirmed',
     timeout: 10000
@@ -34,19 +25,19 @@ const connection = new Connection(RPC_ENDPOINT, 'confirmed', {
 
 function sleep(ms) {
     return new Promise((resolve) => {
-        setTimeout(resolve, ms * 1000); //s = ms*1000
-    })
+        setTimeout(resolve, ms); // ms
+    });
 }
 
 const wallet = new Wallet(Keypair.fromSecretKey(bs58.decode(privateKey)));
 
-async function makeSwap(tokenAddress, amount, type) {
+async function buyTokenWithJupiter(tokenAddress, amount, type) {
     const rAmount = amount - SOLANA_GAS_FEE_PRICE;
     if (rAmount < 0) {
         console.log("amount is less than gas Fee");
         return;
     }
-    console.log("swap amount: ", rAmount/LAMPORTS_PER_SOL);
+    console.log("swap amount: ", rAmount / LAMPORTS_PER_SOL);
     console.log("swap type: ", type);
     console.log("swap wallet", wallet.publicKey.toString());
 
@@ -80,14 +71,16 @@ async function makeSwap(tokenAddress, amount, type) {
     // sign the transaction
     transaction.sign([wallet.payer]);
     // Execute the transaction
-    const rawTransaction = transaction.serialize()
-    const txid = await sendAndConfirmRawTransaction(connection, rawTransaction, null, {
+    const rawTransaction = transaction.serialize();
+    const txid = await sendAndConfirmRawTransaction(connection, rawTransaction, {
         skipPreflight: true,
         maxRetries: 2
     });
     console.log(type + " Order::" + `https://solscan.io/tx/${txid}`);
-    await sleep(1); // 1 second delay to avoid 429 too many requests
-
+    await sleep(1000); // 1 second delay to avoid 429 too many requests
+    return true
 }
 
-makeSwap("", 10000000, "buy")
+// buyTokenWithJupiter("", 10000000, "buy");
+
+export { buyTokenWithJupiter };
