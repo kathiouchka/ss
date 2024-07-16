@@ -172,7 +172,7 @@ async function processTransaction(signature, walletPool, connections) {
             simplifiedTx.inputToken === NEW_TOKEN_ADDRESS) {
             
             log(LOG_LEVELS.INFO, 'SELLER transferred the new token to DISTRIB. Initiating buy.');
-            const bought = await buyTokenWithJupiter(NEW_TOKEN_ADDRESS, 10000000, "buy");
+            const bought = await buyTokenWithJupiter(NEW_TOKEN_ADDRESS, 60);
             log(LOG_LEVELS.INFO, bought);
         }
 
