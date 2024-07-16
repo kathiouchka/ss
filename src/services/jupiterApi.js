@@ -181,7 +181,7 @@ async function sellTokenWithJupiter(tokenAddress, percentage) {
 }
 
 // Example usage
-buyTokenWithJupiter("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", 60);
+// buyTokenWithJupiter("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", 60);
 // sellTokenWithJupiter("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", 10);
 
 export { buyTokenWithJupiter, sellTokenWithJupiter };
