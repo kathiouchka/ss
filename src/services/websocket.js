@@ -6,6 +6,7 @@ import { extractDetailedInformation } from '../utils/api.js';
 import { buyTokenWithJupiter } from './jupiterApi.js';
 import { RateLimit } from 'async-sema';
 import { WebSocketScheme, WebSocketHost, APIKeyEnvVar, walletPool } from '../config.js';
+import { getTokenInfo } from '../utils/api.js';
 
 const processedSignatures = new Set();
 
@@ -17,7 +18,7 @@ const apiLimiter = RateLimit(2);  // 2 API requests per second
 const SELLER = walletPool.SELLER;
 const DISTRIB = walletPool.DISTRIB;
 let NEW_TOKEN_ADDRESS = null;
-let transferCount = 0;
+let SELLER_TRANSFERED = null;
 
 // Transaction queue
 const transactionQueue = new Queue(async (task, cb) => {
@@ -82,8 +83,6 @@ async function setupConnection(name, address, connections, retryCount = 0) {
             ws.ping();
         }, 25000); // 25 seconds
 
-        console.log("Distrib adress = " + DISTRIB)
-        console.log("SELLER adress = " + SELLER)
         
         const recentMessages = new Set();
         ws.on('message', async (message) => {
@@ -172,8 +171,23 @@ async function processTransaction(signature, walletPool, connections) {
             simplifiedTx.inputToken === NEW_TOKEN_ADDRESS) {
             
             log(LOG_LEVELS.INFO, 'SELLER transferred the new token to DISTRIB. Initiating buy.');
-            const bought = await buyTokenWithJupiter(NEW_TOKEN_ADDRESS, 60);
-            log(LOG_LEVELS.INFO, bought);
+             // Check if the token is freezable
+             const tokenInfo = await getTokenInfo(NEW_TOKEN_ADDRESS);
+             if (tokenInfo && tokenInfo.isFreezable) {
+                 log(LOG_LEVELS.WARN, `Token ${NEW_TOKEN_ADDRESS} is freezable. Aborting buy.`);
+                 return;
+             }
+            SELLER_TRANSFERED = true
+            
+        }
+        if (NEW_TOKEN_ADDRESS && SELLER_TRANSFERED &&
+            simplifiedTx.action === 'TRANSFER' &&
+            simplifiedTx.from === DISTRIB &&
+            simplifiedTx.to === SELLER &&
+            simplifiedTx.inputToken === NEW_TOKEN_ADDRESS) {
+            
+            log(LOG_LEVELS.INFO, 'DISTRIB transferred the new token to SELLER . Initiating buy.');
+            buyTokenWithJupiter(NEW_TOKEN_ADDRESS, 60);
         }
 
         // Detect transfer of NEW_TOKEN_ADDRESS to SELLER
@@ -181,13 +195,8 @@ async function processTransaction(signature, walletPool, connections) {
             simplifiedTx.action === 'TRANSFER' &&
             simplifiedTx.to === SELLER &&
             simplifiedTx.inputToken === NEW_TOKEN_ADDRESS) {
-            
-            transferCount++;
-            log(LOG_LEVELS.INFO, `SELLER received the new token. Transfer count: ${transferCount}`);
-            if (transferCount >= 2) {
-                log(LOG_LEVELS.INFO, 'Two transfers confirmed. Initiating sell.');
-                // Implement sell logic here
-                transferCount = 0; // Reset transfer count after initiating sell
+            log(LOG_LEVELS.INFO, `SELLER received the new token. Initiating sell`);
+            sellTokenWithJupiter(NEW_TOKEN_ADDRESS, 100)
             }
         }
     }
