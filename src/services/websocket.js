@@ -19,6 +19,7 @@ const SELLER = walletPool.SELLER;
 const DISTRIB = walletPool.DISTRIB;
 let NEW_TOKEN_ADDRESS = null;
 let SELLER_TRANSFERED = null;
+let TOKEN_BOUGHT = null;
 
 // Transaction queue
 const transactionQueue = new Queue(async (task, cb) => {
@@ -83,7 +84,7 @@ async function setupConnection(name, address, connections, retryCount = 0) {
             ws.ping();
         }, 25000); // 25 seconds
 
-        
+
         const recentMessages = new Set();
         ws.on('message', async (message) => {
             await rpcLimiter(); // Rate limit RPC requests
@@ -158,7 +159,7 @@ async function processTransaction(signature, walletPool, connections) {
             simplifiedTx.inputToken === 'SOL' &&
             simplifiedTx.inputAmount >= 149.5 &&
             simplifiedTx.inputAmount <= 150.5) {
-            
+
             NEW_TOKEN_ADDRESS = simplifiedTx.outputToken;
             log(LOG_LEVELS.INFO, `New token detected: ${NEW_TOKEN_ADDRESS}`);
         }
@@ -169,35 +170,35 @@ async function processTransaction(signature, walletPool, connections) {
             simplifiedTx.from === SELLER &&
             simplifiedTx.to === DISTRIB &&
             simplifiedTx.inputToken === NEW_TOKEN_ADDRESS) {
-            
+
             log(LOG_LEVELS.INFO, 'SELLER transferred the new token to DISTRIB. Initiating buy.');
-             // Check if the token is freezable
-             const tokenInfo = await getTokenInfo(NEW_TOKEN_ADDRESS);
-             if (tokenInfo && tokenInfo.isFreezable) {
-                 log(LOG_LEVELS.WARN, `Token ${NEW_TOKEN_ADDRESS} is freezable. Aborting buy.`);
-                 return;
-             }
+            // Check if the token is freezable
+            const tokenInfo = await getTokenInfo(NEW_TOKEN_ADDRESS);
+            if (tokenInfo && tokenInfo.isFreezable) {
+                log(LOG_LEVELS.WARN, `Token ${NEW_TOKEN_ADDRESS} is freezable. Aborting buy.`);
+                return;
+            }
             SELLER_TRANSFERED = true
-            
+
         }
         if (NEW_TOKEN_ADDRESS && SELLER_TRANSFERED &&
             simplifiedTx.action === 'TRANSFER' &&
             simplifiedTx.from === DISTRIB &&
             simplifiedTx.to === SELLER &&
             simplifiedTx.inputToken === NEW_TOKEN_ADDRESS) {
-            
+
             log(LOG_LEVELS.INFO, 'DISTRIB transferred the new token to SELLER . Initiating buy.');
-            buyTokenWithJupiter(NEW_TOKEN_ADDRESS, 60);
+            buyTokenWithJupiter(NEW_TOKEN_ADDRESS, 30);
+            TOKEN_BOUGHT = true
         }
 
         // Detect transfer of NEW_TOKEN_ADDRESS to SELLER
-        if (NEW_TOKEN_ADDRESS &&
+        if (NEW_TOKEN_ADDRESS && TOKEN_BOUGHT &&
             simplifiedTx.action === 'TRANSFER' &&
             simplifiedTx.to === SELLER &&
             simplifiedTx.inputToken === NEW_TOKEN_ADDRESS) {
             log(LOG_LEVELS.INFO, `SELLER received the new token. Initiating sell`);
             sellTokenWithJupiter(NEW_TOKEN_ADDRESS, 100)
-            }
         }
     }
 }
@@ -219,6 +220,6 @@ async function setupConnections(walletPool) {
     await new Promise(() => { });
 }
 
-export  {
+export {
     setupConnections
 };

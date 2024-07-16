@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { Wallet } from '@project-serum/anchor';
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { log, LOG_LEVELS, logTransaction, logDetailedInfo } from '../utils/logger.js';
+import { getTokenInfo } from '../utils/api.js';
 
 dotenv.config();
 
@@ -109,7 +110,7 @@ async function buyTokenWithJupiter(tokenAddress, percentage) {
             const txid = await sendAndConfirmRawTransaction(connection, rawTransaction, {
                 skipPreflight: true,
                 maxRetries: 5,
-                commitment: 'confirmed',
+                commitment: 'processed',
                 timeout: 30000 // 30 seconds timeout
             });
 
@@ -148,7 +149,7 @@ async function sellTokenWithJupiter(tokenAddress, percentage) {
             wallet.publicKey
         );
         log(LOG_LEVELS.INFO, `Associated Token Account: ${tokenAccount.toString()}`);
-        
+
         let tokenBalance;
         try {
             tokenBalance = await connection.getTokenAccountBalance(tokenAccount);
@@ -181,7 +182,14 @@ async function sellTokenWithJupiter(tokenAddress, percentage) {
 }
 
 // Example usage
-// buyTokenWithJupiter("", 60);
+const tokenInfo = await getTokenInfo("");
+console.log(tokenInfo)
+
+if (tokenInfo && tokenInfo.isFreezable) {
+    log(LOG_LEVELS.WARN, `Token ${tokenInfo.id} is freezable. Aborting buy.`);
+} else {
+    buyTokenWithJupiter("", 10);
+}
 // sellTokenWithJupiter("", 10);
 
 export { buyTokenWithJupiter, sellTokenWithJupiter };
