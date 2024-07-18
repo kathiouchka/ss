@@ -1,11 +1,31 @@
-const { startWebhookServer } = require('./services/webhookServer');
+import { startWebhookServer } from './services/webhookServer';
+import { log, LOG_LEVELS } from './utils/logger';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const requiredEnvVars = [
+  'PRIVATE_KEY',
+  'API_KEY',
+  'SELLER',
+  'DISTRIB'
+];
+
+function checkEnvVariables() {
+  const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+  if (missingVars.length > 0) {
+    log(LOG_LEVELS.ERROR, `Missing required environment variables: ${missingVars.join(', ')}`);
+    process.exit(1);
+  }
+}
 
 async function main() {
   try {
+    checkEnvVariables();
     await startWebhookServer();
-    console.log('Webhook server started successfully');
+    log(LOG_LEVELS.INFO, 'Webhook server started successfully');
   } catch (error) {
-    console.error('Error starting webhook server:', error);
+    log(LOG_LEVELS.ERROR, `Error starting webhook server: ${error.message}`);
   }
 }
 
