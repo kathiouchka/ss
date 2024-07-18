@@ -26,9 +26,8 @@ app.post('/webhook', async (req, res) => {
 
     try {
         log(LOG_LEVELS.INFO, `Received webhook event: ${JSON.stringify(event)}`);
-        log(LOG_LEVELS.INFO, `Description: ${event.description}`);
         if (Array.isArray(event) && event.length > 0) {
-            log(LOG_LEVELS.INFO, `Description: ${event[0].description}`);
+            log(LOG_LEVELS.INFO, `Descripti0n: ${event[0].description}`);
         } else if (event && typeof event === 'object') {
             log(LOG_LEVELS.INFO, `Description: ${event.description}`);
         } else {
