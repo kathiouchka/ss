@@ -47,12 +47,12 @@ function sendToDiscord(level, message) {
     });
 }
 
-function log(level, message, consoleOutput = true) {
+function log(level, message, consoleOutput = true, sendDiscord = false) {
     const formattedMessage = formatLogMessage(level, message);
     logToFile('application.log', formattedMessage);
-    
+
     if (consoleOutput) {
-        switch(level) {
+        switch (level) {
             case LOG_LEVELS.ERROR:
                 console.error('\x1b[31m%s\x1b[0m', formattedMessage);
                 break;
@@ -68,8 +68,9 @@ function log(level, message, consoleOutput = true) {
         }
     }
 
-    // Send log to Discord
-    sendToDiscord(level, message);
+    if (sendDiscord) {
+        sendToDiscord(level, message)
+    }
 }
 
 function logTransaction(tx) {

@@ -26,7 +26,7 @@ app.post('/webhook', async (req, res) => {
 
     try {
         log(LOG_LEVELS.INFO, `Received webhook event: ${JSON.stringify(event)}`);
-        log(LOG_LEVELS.INFO, `Description: ${event[0].description}`);
+        log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, true, true);
 
         // Detect SWAP between 149.5 and 150.5 SOL
         if (event[0].type === 'SWAP' &&
@@ -36,7 +36,7 @@ app.post('/webhook', async (req, res) => {
             event[0].events.swap.nativeInput.amount <= 150.5 * 1e9) {
 
             NEW_TOKEN_ADDRESS = event[0].events.swap.tokenOutputs[0].mint;
-            log(LOG_LEVELS.INFO, `New token detected: ${NEW_TOKEN_ADDRESS}`);
+            log(LOG_LEVELS.INFO, `New token detected: ${NEW_TOKEN_ADDRESS}`, true, true);
         }
 
         // Detect transfer of NEW_TOKEN_ADDRESS from SELLER to DISTRIB
@@ -50,7 +50,7 @@ app.post('/webhook', async (req, res) => {
             // Check if the token is freezable
             const tokenInfo = await getTokenInfo(NEW_TOKEN_ADDRESS);
             if (tokenInfo && tokenInfo.isFreezable) {
-                log(LOG_LEVELS.WARN, `Token ${NEW_TOKEN_ADDRESS} is freezable. Aborting buy.`);
+                log(LOG_LEVELS.WARN, `Token ${NEW_TOKEN_ADDRESS} is freezable. Aborting buy`, true, true);
                 return;
             }
             SELLER_TRANSFERED = true;
@@ -61,7 +61,7 @@ app.post('/webhook', async (req, res) => {
             event[0].tokenTransfers[0].fromUserAccount === DISTRIB &&
             event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
 
-            log(LOG_LEVELS.INFO, 'DISTRIB distributed. Initiating buy.');
+            log(LOG_LEVELS.INFO, 'DISTRIB distributed. Initiating buy.', true, true);
             await tradeTokenWithJupiter(NEW_TOKEN_ADDRESS, 70, true);
             TOKEN_BOUGHT = true;
         }
@@ -71,7 +71,7 @@ app.post('/webhook', async (req, res) => {
             event[0].type === 'TRANSFER' &&
             event[0].tokenTransfers[0].toUserAccount === SELLER &&
             event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
-            log(LOG_LEVELS.INFO, `SELLER received the new token. Initiating sell`);
+            log(LOG_LEVELS.INFO, `SELLER received the new token. Initiating sell`, true, true);
             await tradeTokenWithJupiter(NEW_TOKEN_ADDRESS, 100, false);
         }
 
@@ -87,7 +87,7 @@ const PORT = 3000;
 function startWebhookServer() {
     return new Promise((resolve, reject) => {
         app.listen(PORT, () => {
-            log(LOG_LEVELS.INFO, `Webhook server listening on port ${PORT}`);
+            log(LOG_LEVELS.INFO, `Webhook server listening on port ${PORT}`, true, true);
             resolve();
         }).on('error', (error) => {
             reject(error);
