@@ -2,7 +2,7 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import { log, LOG_LEVELS } from '../utils/logger';
 import { getTokenInfo } from '../utils/tokenInfo.js';
-import { buyTokenWithJupiter, sellTokenWithJupiter } from '../services/jupiterApi';
+import { buyTokenWithJupiter, sellTokenWithJupiter } from './jupiterApi';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -66,7 +66,7 @@ app.post('/webhook', async (req, res) => {
             event.tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
 
             log(LOG_LEVELS.INFO, 'DISTRIB distributed. Initiating buy.');
-            await buyTokenWithJupiter(NEW_TOKEN_ADDRESS, 80);
+            await tradeTokenWithJupiter(NEW_TOKEN_ADDRESS, 70, true);
             TOKEN_BOUGHT = true;
         }
 
@@ -76,7 +76,7 @@ app.post('/webhook', async (req, res) => {
             event.tokenTransfers[0].toUserAccount === SELLER &&
             event.tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
             log(LOG_LEVELS.INFO, `SELLER received the new token. Initiating sell`);
-            await sellTokenWithJupiter(NEW_TOKEN_ADDRESS, 100);
+            await tradeTokenWithJupiter(NEW_TOKEN_ADDRESS, 100, false);
         }
 
         res.status(200).send('Event processed successfully');
@@ -86,9 +86,17 @@ app.post('/webhook', async (req, res) => {
     }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    log(LOG_LEVELS.INFO, `Webhook server listening on port ${PORT}`);
-});
+const PORT = 3000;
 
-export { app };
+function startWebhookServer() {
+    return new Promise((resolve, reject) => {
+        app.listen(PORT, () => {
+            log(LOG_LEVELS.INFO, `Webhook server listening on port ${PORT}`);
+            resolve();
+        }).on('error', (error) => {
+            reject(error);
+        });
+    });
+}
+
+export { startWebhookServer };

@@ -34,39 +34,39 @@ function sleep(ms) {
 
 const wallet = new Wallet(Keypair.fromSecretKey(bs58.decode(privateKey)));
 
-async function buyTokenWithJupiter(tokenAddress, percentage) {
+async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true) {
     const maxRetries = 3;
     let retryCount = 0;
     let success = false;
 
     while (retryCount < maxRetries && !success) {
         try {
-            // Check SOL balance before transaction
-            const balance = await connection.getBalance(wallet.publicKey);
-            const solAmountToUse = balance * (percentage / 100);
-            const amount = Math.floor(solAmountToUse);
+            let amount, inputMint, outputMint;
 
-            log(LOG_LEVELS.INFO, `Starting buy transaction for ${amount / LAMPORTS_PER_SOL} SOL worth of ${tokenAddress}`);
+            if (isBuy) {
+                const balance = await connection.getBalance(wallet.publicKey);
+                amount = Math.floor(balance * (percentage / 100)) - SOLANA_GAS_FEE_PRICE;
+                inputMint = solAddress;
+                outputMint = tokenAddress;
 
-            if (balance < amount) {
-                log(LOG_LEVELS.ERROR, `Insufficient balance. Required: ${amount / LAMPORTS_PER_SOL} SOL, Available: ${balance / LAMPORTS_PER_SOL} SOL`);
-                return false;
+                if (amount < 0) {
+                    log(LOG_LEVELS.ERROR, "Amount is less than gas fee");
+                    return false;
+                }
+
+                log(LOG_LEVELS.INFO, `Starting buy transaction for ${amount / LAMPORTS_PER_SOL} SOL worth of ${tokenAddress}`);
+            } else {
+                const tokenPublicKey = new PublicKey(tokenAddress);
+                const tokenAccount = await getAssociatedTokenAddress(tokenPublicKey, wallet.publicKey);
+                const tokenBalance = await connection.getTokenAccountBalance(tokenAccount);
+                amount = Math.floor(tokenBalance.value.uiAmount * (percentage / 100) * Math.pow(10, tokenBalance.value.decimals));
+                inputMint = tokenAddress;
+                outputMint = solAddress;
+
+                log(LOG_LEVELS.INFO, `Starting sell transaction for ${percentage}% of ${tokenAddress}`);
             }
 
-            const rAmount = amount - SOLANA_GAS_FEE_PRICE;
-            if (rAmount < 0) {
-                log(LOG_LEVELS.ERROR, "Amount is less than gas fee");
-                return false;
-            }
-
-            log(LOG_LEVELS.INFO, `Swap amount: ${rAmount / LAMPORTS_PER_SOL} SOL`);
-            log(LOG_LEVELS.INFO, `Swap type: buy`);
-            log(LOG_LEVELS.INFO, `Swap wallet: ${wallet.publicKey.toString()}`);
-
-            const fixedSwapValLamports = Math.floor(rAmount);
-            const slipBPS = slipTarget * 100;
-
-            let response = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${solAddress}&outputMint=${tokenAddress}&amount=${fixedSwapValLamports}&onlyDirectRoutes=true`);
+            const response = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&onlyDirectRoutes=true`);
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -75,7 +75,6 @@ async function buyTokenWithJupiter(tokenAddress, percentage) {
             const routes = await response.json();
             log(LOG_LEVELS.DEBUG, `Received routes: ${JSON.stringify(routes)}`);
 
-            // Check if the quote is valid
             if (!routes || !routes.routePlan || routes.routePlan.length === 0) {
                 throw new Error("Invalid quote received");
             }
@@ -114,10 +113,9 @@ async function buyTokenWithJupiter(tokenAddress, percentage) {
                 timeout: 30000 // 30 seconds timeout
             });
 
-            log(LOG_LEVELS.INFO, `buy Order:: https://solscan.io/tx/${txid}`);
+            log(LOG_LEVELS.INFO, `${isBuy ? 'Buy' : 'Sell'} Order:: https://solscan.io/tx/${txid}`);
             success = true;
 
-            // Log transaction details
             const txInfo = await connection.getTransaction(txid, {
                 maxSupportedTransactionVersion: 0
             });
@@ -131,7 +129,7 @@ async function buyTokenWithJupiter(tokenAddress, percentage) {
     }
 
     if (!success) {
-        log(LOG_LEVELS.ERROR, "Transaction failed after 3 attempts. Stopping program.");
+        log(LOG_LEVELS.ERROR, `${isBuy ? 'Buy' : 'Sell'} transaction failed after ${maxRetries} attempts. Stopping program.`);
         return false;
     }
 
@@ -139,117 +137,4 @@ async function buyTokenWithJupiter(tokenAddress, percentage) {
     return success;
 }
 
-async function sellTokenWithJupiter(tokenAddress, percentage) {
-    try {
-        const tokenPublicKey = new PublicKey(tokenAddress);
-        log(LOG_LEVELS.INFO, `Token Public Key: ${tokenPublicKey.toString()}`);
-
-        const tokenAccount = await getAssociatedTokenAddress(
-            tokenPublicKey,
-            wallet.publicKey
-        );
-        log(LOG_LEVELS.INFO, `Associated Token Account: ${tokenAccount.toString()}`);
-
-        let tokenBalance;
-        try {
-            tokenBalance = await connection.getTokenAccountBalance(tokenAccount);
-            log(LOG_LEVELS.INFO, `Token Balance: ${JSON.stringify(tokenBalance)}`);
-        } catch (error) {
-            log(LOG_LEVELS.ERROR, `Error getting token balance: ${error.message}`);
-            log(LOG_LEVELS.ERROR, `Full error: ${JSON.stringify(error)}`);
-            return false;
-        }
-
-        // Use percentage of the token balance
-        const tokenAmountToSell = tokenBalance.value.uiAmount * (percentage / 100);
-        log(LOG_LEVELS.INFO, `Selling ${percentage}% of token balance: ${tokenAmountToSell} tokens`);
-
-        // Convert tokenAmountToSell to the correct number of decimal places
-        const decimals = tokenBalance.value.decimals;
-        const rawTokenAmount = Math.floor(tokenAmountToSell * Math.pow(10, decimals));
-
-        if (tokenBalance.value.amount < rawTokenAmount) {
-            log(LOG_LEVELS.ERROR, `Insufficient token balance. Required: ${tokenAmountToSell}, Available: ${tokenBalance.value.uiAmount}`);
-            return false;
-        }
-
-        // Call the Jupiter API to get the best route for selling tokens
-        const response = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${tokenAddress}&outputMint=${solAddress}&amount=${rawTokenAmount}&onlyDirectRoutes=true`);
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const routes = await response.json();
-        log(LOG_LEVELS.DEBUG, `Received routes: ${JSON.stringify(routes)}`);
-
-        // Check if the quote is valid
-        if (!routes || !routes.routePlan || routes.routePlan.length === 0) {
-            throw new Error("Invalid quote received");
-        }
-
-        const transaction_response = await fetch('https://quote-api.jup.ag/v6/swap', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                quoteResponse: routes,
-                userPublicKey: wallet.publicKey.toString(),
-                wrapUnwrapSOL: true,
-                prioritizationFeeLamports: "auto",
-                dynamicComputeUnitLimit: true,
-            })
-        });
-
-        if (!transaction_response.ok) {
-            throw new Error(`HTTP error! status: ${transaction_response.status}`);
-        }
-
-        const transactions = await transaction_response.json();
-        const { swapTransaction } = transactions;
-
-        const swapTransactionBuf = Buffer.from(swapTransaction, 'base64');
-        var transaction = VersionedTransaction.deserialize(swapTransactionBuf);
-        transaction.sign([wallet.payer]);
-
-        const rawTransaction = transaction.serialize();
-
-        const txid = await sendAndConfirmRawTransaction(connection, rawTransaction, {
-            skipPreflight: true,
-            maxRetries: 5,
-            commitment: 'processed',
-            timeout: 30000 // 30 seconds timeout
-        });
-
-        log(LOG_LEVELS.INFO, `sell Order:: https://solscan.io/tx/${txid}`);
-        success = true;
-
-        // Log transaction details
-        const txInfo = await connection.getTransaction(txid, {
-            maxSupportedTransactionVersion: 0
-        });
-        logTransaction(txInfo);
-
-    } catch (error) {
-        log(LOG_LEVELS.ERROR, `Error in sellTokenWithJupiter: ${error.message}`);
-        logDetailedInfo({ error: error.toString(), stack: error.stack });
-        return false;
-    }
-}
-
-// // Example usage
-// const tokenInfo = await getTokenInfo("");
-// console.log(tokenInfo);
-
-// if (tokenInfo && tokenInfo.isFreezable) {
-//     log(LOG_LEVELS.WARN, `Token ${tokenInfo.id} is freezable. Aborting buy.`);
-// } else {
-//     buyTokenWithJupiter("", 10);
-// }
-// sellTokenWithJupiter("", 10);
-
-// buyTokenWithJupiter("", 30);
-sellTokenWithJupiter("", 100);
-
-export { buyTokenWithJupiter, sellTokenWithJupiter };
+export { tradeTokenWithJupiter };
