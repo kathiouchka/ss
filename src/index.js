@@ -29,4 +29,7 @@ async function main() {
   }
 }
 
-main();
+log(LOG_LEVELS.INFO, 'About to call main function');
+main().catch(error => {
+  log(LOG_LEVELS.ERROR, `Unhandled error in main: ${error.message}`);
+});
