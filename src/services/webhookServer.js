@@ -17,6 +17,10 @@ let NEW_TOKEN_ADDRESS = null;
 let SELLER_TRANSFERED = false;
 let TOKEN_BOUGHT = false;
 
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+  });
+
 app.post('/webhook', async (req, res) => {
     const event = req.body;
     
@@ -24,7 +28,7 @@ app.post('/webhook', async (req, res) => {
         const relevantInfo = {
             description: event.description,
             signature: event.signature,
-            timestamp: new Date(event.timestamp * 1000).toLocaleString(),
+            timestamp: event.timestamp,
             tokenTransfers: event.tokenTransfers,
             transactionError: event.transactionError,
             type: event.type
