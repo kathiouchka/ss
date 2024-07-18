@@ -29,22 +29,22 @@ app.post('/webhook', async (req, res) => {
         log(LOG_LEVELS.INFO, `Description: ${event[0].description}`);
 
         // Detect SWAP between 149.5 and 150.5 SOL
-        if (event.type === 'SWAP' &&
-            event.events.swap.nativeInput &&
-            event.events.swap.nativeInput.account === SELLER &&
-            event.events.swap.nativeInput.amount >= 149.5 * 1e9 &&
-            event.events.swap.nativeInput.amount <= 150.5 * 1e9) {
+        if (event[0].type === 'SWAP' &&
+            event[0].events.swap.nativeInput &&
+            event[0].events.swap.nativeInput.account === SELLER &&
+            event[0].events.swap.nativeInput.amount >= 149.5 * 1e9 &&
+            event[0].events.swap.nativeInput.amount <= 150.5 * 1e9) {
 
-            NEW_TOKEN_ADDRESS = event.events.swap.tokenOutputs[0].mint;
+            NEW_TOKEN_ADDRESS = event[0].events.swap.tokenOutputs[0].mint;
             log(LOG_LEVELS.INFO, `New token detected: ${NEW_TOKEN_ADDRESS}`);
         }
 
         // Detect transfer of NEW_TOKEN_ADDRESS from SELLER to DISTRIB
         if (NEW_TOKEN_ADDRESS &&
-            event.type === 'TRANSFER' &&
-            event.tokenTransfers[0].fromUserAccount === SELLER &&
-            event.tokenTransfers[0].toUserAccount === DISTRIB &&
-            event.tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
+            event[0].type === 'TRANSFER' &&
+            event[0].tokenTransfers[0].fromUserAccount === SELLER &&
+            event[0].tokenTransfers[0].toUserAccount === DISTRIB &&
+            event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
 
             log(LOG_LEVELS.INFO, 'SELLER transferred the new token to DISTRIB - checking FREEZABLE');
             // Check if the token is freezable
@@ -57,9 +57,9 @@ app.post('/webhook', async (req, res) => {
         }
 
         if (NEW_TOKEN_ADDRESS && SELLER_TRANSFERED &&
-            event.type === 'TRANSFER' &&
-            event.tokenTransfers[0].fromUserAccount === DISTRIB &&
-            event.tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
+            event[0].type === 'TRANSFER' &&
+            event[0].tokenTransfers[0].fromUserAccount === DISTRIB &&
+            event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
 
             log(LOG_LEVELS.INFO, 'DISTRIB distributed. Initiating buy.');
             await tradeTokenWithJupiter(NEW_TOKEN_ADDRESS, 70, true);
@@ -68,9 +68,9 @@ app.post('/webhook', async (req, res) => {
 
         // Detect transfer of NEW_TOKEN_ADDRESS to SELLER
         if (NEW_TOKEN_ADDRESS && TOKEN_BOUGHT &&
-            event.type === 'TRANSFER' &&
-            event.tokenTransfers[0].toUserAccount === SELLER &&
-            event.tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
+            event[0].type === 'TRANSFER' &&
+            event[0].tokenTransfers[0].toUserAccount === SELLER &&
+            event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
             log(LOG_LEVELS.INFO, `SELLER received the new token. Initiating sell`);
             await tradeTokenWithJupiter(NEW_TOKEN_ADDRESS, 100, false);
         }
