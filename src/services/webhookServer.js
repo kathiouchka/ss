@@ -1,37 +1,94 @@
 import express from 'express';
 import bodyParser from 'body-parser';
-import fs from 'fs';
-import { processTransaction } from './services/transactionProcessor.js';
-import { walletPool } from '../config.js';
+import { log, LOG_LEVELS } from '../utils/logger';
+import { getTokenInfo } from '../utils/tokenInfo.js';
+import { buyTokenWithJupiter, sellTokenWithJupiter } from '../services/jupiterApi';
+import dotenv from 'dotenv';
 
+dotenv.config();
 
 const app = express();
-const PORT = 3000;
-
 app.use(bodyParser.json());
+
+const SELLER = process.env.SELLER;
+const DISTRIB = process.env.DISTRIB;
+
+let NEW_TOKEN_ADDRESS = null;
+let SELLER_TRANSFERED = false;
+let TOKEN_BOUGHT = false;
 
 app.post('/webhook', async (req, res) => {
     const event = req.body;
-    console.log('Received webhook event:', event);
     
-    // Convert the event to a JSON string
-    const eventStr = JSON.stringify(event, null, 2);
-    
-    // Write the event to a log file
-    fs.appendFile('webhook_log.json', eventStr + '\n', (err) => {
-        if (err) {
-            console.error('Failed to write event to file:', err);
-        } else {
-            console.log('Event logged to file');
+    try {
+        const relevantInfo = {
+            description: event.description,
+            signature: event.signature,
+            timestamp: new Date(event.timestamp * 1000).toLocaleString(),
+            tokenTransfers: event.tokenTransfers,
+            transactionError: event.transactionError,
+            type: event.type
+        };
+
+        log(LOG_LEVELS.INFO, `Received webhook event: ${JSON.stringify(relevantInfo, null, 2)}`);
+
+        // Detect SWAP between 149.5 and 150.5 SOL
+        if (event.type === 'SWAP' &&
+            event.events.swap.nativeInput &&
+            event.events.swap.nativeInput.account === SELLER &&
+            event.events.swap.nativeInput.amount >= 149.5 * 1e9 &&
+            event.events.swap.nativeInput.amount <= 150.5 * 1e9) {
+
+            NEW_TOKEN_ADDRESS = event.events.swap.tokenOutputs[0].mint;
+            log(LOG_LEVELS.INFO, `New token detected: ${NEW_TOKEN_ADDRESS}`);
         }
-    });
-    
-    // Process the transaction
-    await processTransaction(event, walletPool);
-    
-    res.status(200).send('Event received and processed');
+
+        // Detect transfer of NEW_TOKEN_ADDRESS from SELLER to DISTRIB
+        if (NEW_TOKEN_ADDRESS &&
+            event.type === 'TRANSFER' &&
+            event.tokenTransfers[0].fromUserAccount === SELLER &&
+            event.tokenTransfers[0].toUserAccount === DISTRIB &&
+            event.tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
+
+            log(LOG_LEVELS.INFO, 'SELLER transferred the new token to DISTRIB - checking FREEZABLE');
+            // Check if the token is freezable
+            const tokenInfo = await getTokenInfo(NEW_TOKEN_ADDRESS);
+            if (tokenInfo && tokenInfo.isFreezable) {
+                log(LOG_LEVELS.WARN, `Token ${NEW_TOKEN_ADDRESS} is freezable. Aborting buy.`);
+                return;
+            }
+            SELLER_TRANSFERED = true;
+        }
+
+        if (NEW_TOKEN_ADDRESS && SELLER_TRANSFERED &&
+            event.type === 'TRANSFER' &&
+            event.tokenTransfers[0].fromUserAccount === DISTRIB &&
+            event.tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
+
+            log(LOG_LEVELS.INFO, 'DISTRIB distributed. Initiating buy.');
+            await buyTokenWithJupiter(NEW_TOKEN_ADDRESS, 80);
+            TOKEN_BOUGHT = true;
+        }
+
+        // Detect transfer of NEW_TOKEN_ADDRESS to SELLER
+        if (NEW_TOKEN_ADDRESS && TOKEN_BOUGHT &&
+            event.type === 'TRANSFER' &&
+            event.tokenTransfers[0].toUserAccount === SELLER &&
+            event.tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
+            log(LOG_LEVELS.INFO, `SELLER received the new token. Initiating sell`);
+            await sellTokenWithJupiter(NEW_TOKEN_ADDRESS, 100);
+        }
+
+        res.status(200).send('Event processed successfully');
+    } catch (error) {
+        log(LOG_LEVELS.ERROR, `Error processing event: ${error.message}`);
+        res.status(500).send('Error processing event');
+    }
 });
 
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Webhook server listening on port ${PORT}`);
+    log(LOG_LEVELS.INFO, `Webhook server listening on port ${PORT}`);
 });
+
+export { app };
