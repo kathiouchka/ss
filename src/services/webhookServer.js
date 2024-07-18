@@ -19,14 +19,14 @@ let TOKEN_BOUGHT = false;
 
 app.get('/health', (req, res) => {
     res.status(200).send('OK');
-  });
+});
 
 app.post('/webhook', async (req, res) => {
     const event = req.body;
-    
+
     try {
-        log(LOG_LEVELS.INFO, `Received webhook event:` + event);
-        log(LOG_LEVELS.INFO, `Description:` + event.description);
+        log(LOG_LEVELS.INFO, `Received webhook event: ${JSON.stringify(event)}`);
+        log(LOG_LEVELS.INFO, `Description: ${event.description}`);
 
         // Detect SWAP between 149.5 and 150.5 SOL
         if (event.type === 'SWAP' &&
