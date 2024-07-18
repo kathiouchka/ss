@@ -34,17 +34,37 @@ function sendToDiscord(level, message) {
     }
 
     const formattedMessage = formatLogMessage(level, message);
+    const color = getColorForLevel(level);
+
     fetch(DISCORD_WEBHOOK_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            content: `\`\`\`${formattedMessage}\`\`\``,
+            embeds: [{
+                description: `\`\`\`ansi\n${formattedMessage}\`\`\``,
+                color: color
+            }]
         }),
     }).catch(error => {
         console.error(`Error sending log to Discord: ${error.message}`);
     });
+}
+
+function getColorForLevel(level) {
+    switch (level) {
+        case LOG_LEVELS.ERROR:
+            return 0xFF0000; // Red
+        case LOG_LEVELS.WARN:
+            return 0xFFFF00; // Yellow
+        case LOG_LEVELS.INFO:
+            return 0x00FFFF; // Cyan
+        case LOG_LEVELS.DEBUG:
+            return 0x808080; // Gray
+        default:
+            return 0xFFFFFF; // White
+    }
 }
 
 function log(level, message, consoleOutput = true, sendDiscord = false) {
