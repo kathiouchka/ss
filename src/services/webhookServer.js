@@ -26,13 +26,7 @@ app.post('/webhook', async (req, res) => {
 
     try {
         log(LOG_LEVELS.INFO, `Received webhook event: ${JSON.stringify(event)}`);
-        if (Array.isArray(event) && event.length > 0) {
-            log(LOG_LEVELS.INFO, `Descripti0n: ${event[0].description}`);
-        } else if (event && typeof event === 'object') {
-            log(LOG_LEVELS.INFO, `Description: ${event.description}`);
-        } else {
-            log(LOG_LEVELS.WARN, `Unexpected event structure: ${typeof event}`);
-        }
+        log(LOG_LEVELS.INFO, `Description: ${event[0].description}`);
 
         // Detect SWAP between 149.5 and 150.5 SOL
         if (event.type === 'SWAP' &&
