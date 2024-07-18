@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import { Wallet } from '@project-serum/anchor';
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { log, LOG_LEVELS, logTransaction, logDetailedInfo } from '../utils/logger.js';
-import { getTokenInfo } from '../utils/api.js';
+import { getTokenInfo } from '../utils/tokenInfo.js';
 
 dotenv.config();
 
@@ -238,15 +238,18 @@ async function sellTokenWithJupiter(tokenAddress, percentage) {
     }
 }
 
-// Example usage
-const tokenInfo = await getTokenInfo("");
-console.log(tokenInfo)
+// // Example usage
+// const tokenInfo = await getTokenInfo("");
+// console.log(tokenInfo);
 
-if (tokenInfo && tokenInfo.isFreezable) {
-    log(LOG_LEVELS.WARN, `Token ${tokenInfo.id} is freezable. Aborting buy.`);
-} else {
-    buyTokenWithJupiter("", 10);
-}
+// if (tokenInfo && tokenInfo.isFreezable) {
+//     log(LOG_LEVELS.WARN, `Token ${tokenInfo.id} is freezable. Aborting buy.`);
+// } else {
+//     buyTokenWithJupiter("", 10);
+// }
 // sellTokenWithJupiter("", 10);
+
+// buyTokenWithJupiter("", 30);
+sellTokenWithJupiter("", 100);
 
 export { buyTokenWithJupiter, sellTokenWithJupiter };

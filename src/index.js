@@ -1,11 +1,12 @@
-import dotenv from 'dotenv';
-import { setupConnections } from './services/websocket.js';
-import { walletPool } from './config.js';
-
-dotenv.config();
+const { startWebhookServer } = require('./services/webhookServer');
 
 async function main() {
-    await setupConnections(walletPool);
+  try {
+    await startWebhookServer();
+    console.log('Webhook server started successfully');
+  } catch (error) {
+    console.error('Error starting webhook server:', error);
+  }
 }
 
-main().catch(console.error);
+main();
