@@ -1,5 +1,5 @@
-import { startWebhookServer } from './services/webhookServer';
-import { log, LOG_LEVELS } from './utils/logger';
+import { startWebhookServer } from './services/webhookServer.js';
+import { log, LOG_LEVELS } from './utils/logger.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
