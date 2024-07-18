@@ -173,7 +173,64 @@ async function sellTokenWithJupiter(tokenAddress, percentage) {
             return false;
         }
 
-        return buyTokenWithJupiter(tokenAddress, rawTokenAmount, 'sell');
+        // Call the Jupiter API to get the best route for selling tokens
+        const response = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${tokenAddress}&outputMint=${solAddress}&amount=${rawTokenAmount}&onlyDirectRoutes=true`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const routes = await response.json();
+        log(LOG_LEVELS.DEBUG, `Received routes: ${JSON.stringify(routes)}`);
+
+        // Check if the quote is valid
+        if (!routes || !routes.routePlan || routes.routePlan.length === 0) {
+            throw new Error("Invalid quote received");
+        }
+
+        const transaction_response = await fetch('https://quote-api.jup.ag/v6/swap', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                quoteResponse: routes,
+                userPublicKey: wallet.publicKey.toString(),
+                wrapUnwrapSOL: true,
+                prioritizationFeeLamports: "auto",
+                dynamicComputeUnitLimit: true,
+            })
+        });
+
+        if (!transaction_response.ok) {
+            throw new Error(`HTTP error! status: ${transaction_response.status}`);
+        }
+
+        const transactions = await transaction_response.json();
+        const { swapTransaction } = transactions;
+
+        const swapTransactionBuf = Buffer.from(swapTransaction, 'base64');
+        var transaction = VersionedTransaction.deserialize(swapTransactionBuf);
+        transaction.sign([wallet.payer]);
+
+        const rawTransaction = transaction.serialize();
+
+        const txid = await sendAndConfirmRawTransaction(connection, rawTransaction, {
+            skipPreflight: true,
+            maxRetries: 5,
+            commitment: 'processed',
+            timeout: 30000 // 30 seconds timeout
+        });
+
+        log(LOG_LEVELS.INFO, `sell Order:: https://solscan.io/tx/${txid}`);
+        success = true;
+
+        // Log transaction details
+        const txInfo = await connection.getTransaction(txid, {
+            maxSupportedTransactionVersion: 0
+        });
+        logTransaction(txInfo);
+
     } catch (error) {
         log(LOG_LEVELS.ERROR, `Error in sellTokenWithJupiter: ${error.message}`);
         logDetailedInfo({ error: error.toString(), stack: error.stack });
