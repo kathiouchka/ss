@@ -1,5 +1,9 @@
 import fs from 'fs';
 import path from 'path';
+import fetch from 'node-fetch';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const LOG_LEVELS = {
     ERROR: 'ERROR',
@@ -7,6 +11,8 @@ const LOG_LEVELS = {
     INFO: 'INFO',
     DEBUG: 'DEBUG'
 };
+
+const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
 
 function formatLogMessage(level, message) {
     const timestamp = new Date().toISOString();
@@ -19,6 +25,26 @@ function logToFile(fileName, message) {
         fs.mkdirSync(logDir, { recursive: true });
     }
     fs.appendFileSync(path.join(logDir, fileName), message);
+}
+
+function sendToDiscord(level, message) {
+    if (!DISCORD_WEBHOOK_URL) {
+        console.warn('Discord webhook URL not set. Skipping Discord logging.');
+        return;
+    }
+
+    const formattedMessage = formatLogMessage(level, message);
+    fetch(DISCORD_WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            content: `\`\`\`${formattedMessage}\`\`\``,
+        }),
+    }).catch(error => {
+        console.error(`Error sending log to Discord: ${error.message}`);
+    });
 }
 
 function log(level, message, consoleOutput = true) {
@@ -41,6 +67,9 @@ function log(level, message, consoleOutput = true) {
                 break;
         }
     }
+
+    // Send log to Discord
+    sendToDiscord(level, message);
 }
 
 function logTransaction(tx) {

@@ -8,7 +8,8 @@ const requiredEnvVars = [
   'PRIVATE_KEY',
   'API_KEY',
   'SELLER',
-  'DISTRIB'
+  'DISTRIB',
+  'DISCORD_WEBHOOK_URL'
 ];
 
 function checkEnvVariables() {
