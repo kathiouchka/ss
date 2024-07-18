@@ -25,16 +25,8 @@ app.post('/webhook', async (req, res) => {
     const event = req.body;
     
     try {
-        const relevantInfo = {
-            description: event.description,
-            signature: event.signature,
-            timestamp: event.timestamp,
-            tokenTransfers: event.tokenTransfers,
-            transactionError: event.transactionError,
-            type: event.type
-        };
-
-        log(LOG_LEVELS.INFO, `Received webhook event: ${JSON.stringify(relevantInfo, null, 2)}`);
+        log(LOG_LEVELS.INFO, `Received webhook event:` + event);
+        log(LOG_LEVELS.INFO, `Description:` + event.description);
 
         // Detect SWAP between 149.5 and 150.5 SOL
         if (event.type === 'SWAP' &&
