@@ -56,6 +56,7 @@ app.post('/webhook', async (req, res) => {
 
     try {
         log(LOG_LEVELS.INFO, `Received webhook event: ${JSON.stringify(event)}`);
+        
         if (event[0].type === 'SWAP') {
             const isBuy = event[0].events.swap.nativeInput !== null;
             const inputToken = isBuy ? 'SOL' : event[0].events.swap.tokenInputs[0].symbol;
@@ -65,9 +66,10 @@ app.post('/webhook', async (req, res) => {
             const inputMint = isBuy ? 'So11111111111111111111111111111111111111112' : event[0].events.swap.tokenInputs[0].mint;
             const outputMint = isBuy ? event[0].events.swap.tokenOutputs[0].mint : 'So11111111111111111111111111111111111111112';
 
-            const description = `${event[0].signer} swapped ${inputAmount} [${inputToken}](https://solscan.io/token/${inputMint}) for ${outputAmount} [${outputToken}](https://solscan.io/token/${outputMint})`;
-            log(LOG_LEVELS.INFO, `${description}`, true, true);
+            const description = `${event[0].accountData[0].account} swapped ${inputAmount} [${inputToken}](https://solscan.io/token/${inputMint}) for ${outputAmount} [${outputToken}](https://solscan.io/token/${outputMint})`;
+            log(LOG_LEVELS.INFO, `Description: ${description}`, true, true);
 
+            // Check for new token detection (SOL amount between 149.5 and 150.5)
             const solAmount = isBuy ? event[0].events.swap.nativeInput.amount : event[0].events.swap.nativeOutput.amount;
             if (solAmount >= 149.5 * 1e9 && solAmount <= 150.5 * 1e9) {
                 NEW_TOKEN_ADDRESS = isBuy ? event[0].events.swap.tokenOutputs[0].mint : event[0].events.swap.tokenInputs[0].mint;
@@ -82,39 +84,7 @@ app.post('/webhook', async (req, res) => {
                 buyWaitAndSell(NEW_TOKEN_ADDRESS);
             }
         } else {
-            log(LOG_LEVELS.INFO, `${event[0].description}`, true, true);
-        }
-
-        // Detect transfer of NEW_TOKEN_ADDRESS from SELLER to DISTRIB
-        if (NEW_TOKEN_ADDRESS &&
-            event[0].type === 'TRANSFER' &&
-            event[0].tokenTransfers[0].fromUserAccount === SELLER &&
-            event[0].tokenTransfers[0].toUserAccount === DISTRIB &&
-            event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
-
-            log(LOG_LEVELS.INFO, 'SELLER transferred the new token to DISTRIB');
-            // Check if the token is freezable
-            
-            SELLER_TRANSFERED = true;
-        }
-
-        if (NEW_TOKEN_ADDRESS && SELLER_TRANSFERED &&
-            event[0].type === 'TRANSFER' &&
-            event[0].tokenTransfers[0].fromUserAccount === DISTRIB &&
-            event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
-
-            log(LOG_LEVELS.INFO, 'DISTRIB distributed. Initiating buy.', true, true);
-            await tradeTokenWithJupiter(NEW_TOKEN_ADDRESS, 70, true);
-            TOKEN_BOUGHT = true;
-        }
-
-        // Detect transfer of NEW_TOKEN_ADDRESS to SELLER
-        if (NEW_TOKEN_ADDRESS && TOKEN_BOUGHT &&
-            event[0].type === 'TRANSFER' &&
-            event[0].tokenTransfers[0].toUserAccount === SELLER &&
-            event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
-            log(LOG_LEVELS.INFO, `SELLER received the new token. Initiating sell`, true, true);
-            await tradeTokenWithJupiter(NEW_TOKEN_ADDRESS, 100, false);
+            log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, true, true);
         }
 
         res.status(200).send('Event processed successfully');
