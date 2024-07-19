@@ -47,10 +47,10 @@ async function buyWaitAndSell(tokenAddress) {
 }
 
 function getMintFromEvent(event) {
-    if (event.type === 'SWAP' && event.events.swap.tokenOutputs) {
-        return event.events.swap.tokenOutputs[0].mint;
-    } else if (event.type === 'TRANSFER' && event.tokenTransfers && event.tokenTransfers.length > 0) {
-        return event.tokenTransfers[0].mint;
+    if (event[0].type === 'SWAP' && event[0].events.swap.tokenOutputs) {
+        return event[0].events.swap.tokenOutputs[0].mint;
+    } else if (event[0].type === 'TRANSFER' && event[0].tokenTransfers && event[0].tokenTransfers.length > 0) {
+        return event[0].tokenTransfers[0].mint;
     }
     return null;
 }
