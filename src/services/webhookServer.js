@@ -61,15 +61,15 @@ app.post('/webhook', async (req, res) => {
             const isBuy = swapEvent.nativeInput !== null;
             const inputMint = isBuy ? 'So11111111111111111111111111111111111111112' : swapEvent.tokenInputs[0].mint;
             const outputMint = isBuy ? swapEvent.tokenOutputs[0].mint : 'So11111111111111111111111111111111111111112';
-
+    
             log(LOG_LEVELS.INFO, `${event[0].description}`, true, true, inputMint, outputMint);
-
+    
             // Check for new token detection (SOL amount between 149.5 and 150.5)
             const solAmount = isBuy ? swapEvent.nativeInput.amount : swapEvent.nativeOutput.amount;
             if (solAmount >= 149.5 * 1e9 && solAmount <= 150.5 * 1e9) {
                 NEW_TOKEN_ADDRESS = isBuy ? swapEvent.tokenOutputs[0].mint : swapEvent.tokenInputs[0].mint;
                 log(LOG_LEVELS.INFO, `New token detected: ${NEW_TOKEN_ADDRESS}`, true, true);
-                
+    
                 const tokenInfo = await getTokenInfo(NEW_TOKEN_ADDRESS);
                 if (tokenInfo && tokenInfo.isFreezable) {
                     log(LOG_LEVELS.WARN, `Token ${NEW_TOKEN_ADDRESS} is freezable. Aborting buy`, true, true);
@@ -78,47 +78,52 @@ app.post('/webhook', async (req, res) => {
                 }
                 buyWaitAndSell(NEW_TOKEN_ADDRESS);
             }
+        } else if (event[0].type === 'TRANSFER') {
+            log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, true, true, event[0].tokenTransfers[0].mint);
         } else {
             log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, true, true);
         }
-
-        // Detect transfer of NEW_TOKEN_ADDRESS from SELLER to DISTRIB
-        if (NEW_TOKEN_ADDRESS &&
-            event[0].type === 'TRANSFER' &&
-            event[0].tokenTransfers[0].fromUserAccount === SELLER &&
-            event[0].tokenTransfers[0].toUserAccount === DISTRIB &&
-            event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
-
-            log(LOG_LEVELS.INFO, 'SELLER transferred the new token to DISTRIB');
-            // Check if the token is freezable
-
-            SELLER_TRANSFERED = true;
-        }
-
-        if (NEW_TOKEN_ADDRESS && SELLER_TRANSFERED &&
-            event[0].type === 'TRANSFER' &&
-            event[0].tokenTransfers[0].fromUserAccount === DISTRIB &&
-            event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
-
-            log(LOG_LEVELS.INFO, 'DISTRIB distributed. Initiating buy.', true, true);
-            await tradeTokenWithJupiter(NEW_TOKEN_ADDRESS, 70, true);
-            TOKEN_BOUGHT = true;
-        }
-
-        // Detect transfer of NEW_TOKEN_ADDRESS to SELLER
-        if (NEW_TOKEN_ADDRESS && TOKEN_BOUGHT &&
-            event[0].type === 'TRANSFER' &&
-            event[0].tokenTransfers[0].toUserAccount === SELLER &&
-            event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
-            log(LOG_LEVELS.INFO, `SELLER received the new token. Initiating sell`, true, true);
-            await tradeTokenWithJupiter(NEW_TOKEN_ADDRESS, 100, false);
-        }
-
-        res.status(200).send('Event processed successfully');
     } catch (error) {
-        log(LOG_LEVELS.ERROR, `Error processing event: ${error.message}`);
-        res.status(500).send('Error processing event');
+        log(LOG_LEVELS.ERROR, `Error processing event: ${error.message}`, true, true);
     }
+
+    // Detect transfer of NEW_TOKEN_ADDRESS from SELLER to DISTRIB
+    if (NEW_TOKEN_ADDRESS &&
+        event[0].type === 'TRANSFER' &&
+        event[0].tokenTransfers[0].fromUserAccount === SELLER &&
+        event[0].tokenTransfers[0].toUserAccount === DISTRIB &&
+        event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
+
+        log(LOG_LEVELS.INFO, 'SELLER transferred the new token to DISTRIB');
+        // Check if the token is freezable
+
+        SELLER_TRANSFERED = true;
+    }
+
+    if (NEW_TOKEN_ADDRESS && SELLER_TRANSFERED &&
+        event[0].type === 'TRANSFER' &&
+        event[0].tokenTransfers[0].fromUserAccount === DISTRIB &&
+        event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
+
+        log(LOG_LEVELS.INFO, 'DISTRIB distributed. Initiating buy.', true, true);
+        await tradeTokenWithJupiter(NEW_TOKEN_ADDRESS, 70, true);
+        TOKEN_BOUGHT = true;
+    }
+
+    // Detect transfer of NEW_TOKEN_ADDRESS to SELLER
+    if (NEW_TOKEN_ADDRESS && TOKEN_BOUGHT &&
+        event[0].type === 'TRANSFER' &&
+        event[0].tokenTransfers[0].toUserAccount === SELLER &&
+        event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
+        log(LOG_LEVELS.INFO, `SELLER received the new token. Initiating sell`, true, true);
+        await tradeTokenWithJupiter(NEW_TOKEN_ADDRESS, 100, false);
+    }
+
+    res.status(200).send('Event processed successfully');
+} catch (error) {
+    log(LOG_LEVELS.ERROR, `Error processing event: ${error.message}`);
+    res.status(500).send('Error processing event');
+}
 });
 
 
