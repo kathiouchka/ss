@@ -21,39 +21,31 @@ let TOKEN_BOUGHT = false;
 async function buyWaitAndSell(tokenAddress) {
     try {
         // Buy
-        log(LOG_LEVELS.INFO, `Initiating buy for ${tokenAddress}`, true, true, tokenAddress);
+        log(LOG_LEVELS.INFO, `Initiating buy for ${tokenAddress}`, true, true);
         const buySuccess = await tradeTokenWithJupiter(tokenAddress, 20, true);
         if (!buySuccess) {
-            log(LOG_LEVELS.ERROR, `Buy transaction failed for ${tokenAddress}`, true, true, tokenAddress);
+            log(LOG_LEVELS.ERROR, `Buy transaction failed for ${tokenAddress}`, true, true);
             return;
         }
-        log(LOG_LEVELS.INFO, `Buy successful for ${tokenAddress}`, true, true, tokenAddress);
+        log(LOG_LEVELS.INFO, `Buy successful for ${tokenAddress}`, true, true);
 
         // Wait
-        log(LOG_LEVELS.INFO, `Waiting 20 seconds before selling ${tokenAddress}`, true, true, tokenAddress);
+        log(LOG_LEVELS.INFO, `Waiting 20 seconds before selling ${tokenAddress}`, true, true);
         await setTimeout(20000);
 
         // Sell
-        log(LOG_LEVELS.INFO, `Initiating sell for ${tokenAddress}`, true, true, tokenAddress);
+        log(LOG_LEVELS.INFO, `Initiating sell for ${tokenAddress}`, true, true);
         const sellSuccess = await tradeTokenWithJupiter(tokenAddress, 100, false);
         if (!sellSuccess) {
-            log(LOG_LEVELS.ERROR, `Sell transaction failed for ${tokenAddress}`, true, true, tokenAddress);
+            log(LOG_LEVELS.ERROR, `Sell transaction failed for ${tokenAddress}`, true, true);
             return;
         }
-        log(LOG_LEVELS.INFO, `Sell successful for ${tokenAddress}`, true, true, tokenAddress);
+        log(LOG_LEVELS.INFO, `Sell successful for ${tokenAddress}`, true, true);
     } catch (error) {
-        log(LOG_LEVELS.ERROR, `Error in buyWaitAndSell: ${error.message}`, true, true, tokenAddress);
+        log(LOG_LEVELS.ERROR, `Error in buyWaitAndSell: ${error.message}`, true, true);
     }
 }
 
-function getMintFromEvent(event) {
-    if (event[0].type === 'SWAP' && event[0].events.swap.tokenOutputs) {
-        return event[0].events.swap.tokenOutputs[0].mint;
-    } else if (event[0].type === 'TRANSFER' && event[0].tokenTransfers && event[0].tokenTransfers.length > 0) {
-        return event[0].tokenTransfers[0].mint;
-    }
-    return null;
-}
 
 app.get('/health', (req, res) => {
     res.status(200).send('OK');
@@ -63,9 +55,8 @@ app.post('/webhook', async (req, res) => {
     const event = req.body;
 
     try {
-        const mintAddress = getMintFromEvent(event);
         log(LOG_LEVELS.INFO, `Received webhook event: ${JSON.stringify(event)}`);
-        log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, true, true, mintAddress);
+        log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, true, true);
 
         // Detect SWAP between 149.5 and 150.5 SOL
         if (event[0].type === 'SWAP' &&
@@ -75,7 +66,7 @@ app.post('/webhook', async (req, res) => {
             event[0].events.swap.nativeInput.amount <= 150.5 * 1e9) {
 
             NEW_TOKEN_ADDRESS = event[0].events.swap.tokenOutputs[0].mint;
-            log(LOG_LEVELS.INFO, `New token detected: ${NEW_TOKEN_ADDRESS}`, true, true, NEW_TOKEN_ADDRESS);
+            log(LOG_LEVELS.INFO, `New token detected: ${NEW_TOKEN_ADDRESS}`, true, true);
             
             const tokenInfo = await getTokenInfo(NEW_TOKEN_ADDRESS);
             if (tokenInfo && tokenInfo.isFreezable) {
@@ -104,7 +95,7 @@ app.post('/webhook', async (req, res) => {
             event[0].tokenTransfers[0].fromUserAccount === DISTRIB &&
             event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
 
-            log(LOG_LEVELS.INFO, 'DISTRIB distributed. Initiating buy.', true, true, NEW_TOKEN_ADDRESS);
+            log(LOG_LEVELS.INFO, 'DISTRIB distributed. Initiating buy.', true, true);
             await tradeTokenWithJupiter(NEW_TOKEN_ADDRESS, 70, true);
             TOKEN_BOUGHT = true;
         }
@@ -114,7 +105,7 @@ app.post('/webhook', async (req, res) => {
             event[0].type === 'TRANSFER' &&
             event[0].tokenTransfers[0].toUserAccount === SELLER &&
             event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
-            log(LOG_LEVELS.INFO, `SELLER received the new token. Initiating sell`, true, true, NEW_TOKEN_ADDRESS);
+            log(LOG_LEVELS.INFO, `SELLER received the new token. Initiating sell`, true, true);
             await tradeTokenWithJupiter(NEW_TOKEN_ADDRESS, 100, false);
         }
 
