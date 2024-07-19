@@ -47,12 +47,15 @@ function log(level, message, sendToDiscord = false, sendToConsole = true, inputM
         };
 
         const replaceTokens = (text, inputMint, outputMint) => {
+            console.log(inputMint)
+            console.log(outputMint)
             const tokenRegex = /\b(\d+(?:\.\d+)?\s+)([A-Za-z]+)\b/g;
             const SOL_MINT = 'So11111111111111111111111111111111111111112';
-            
+
             // Determine which is the non-SOL mint
             const nonSolMint = inputMint === SOL_MINT ? outputMint : inputMint;
-        
+            console.log(nonSolMint)
+
             return text.replace(tokenRegex, (match, amount, tokenName) => {
                 let mint;
                 if (tokenName === 'SOL') {
@@ -60,7 +63,7 @@ function log(level, message, sendToDiscord = false, sendToConsole = true, inputM
                 } else {
                     mint = nonSolMint;
                 }
-        
+
                 return `${amount}[${tokenName}](https://dexscreener.com/solana/${mint})`;
             });
         };
