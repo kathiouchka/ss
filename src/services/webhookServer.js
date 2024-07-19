@@ -62,7 +62,7 @@ app.post('/webhook', async (req, res) => {
             const inputMint = isBuy ? 'So11111111111111111111111111111111111111112' : swapEvent.tokenInputs[0].mint;
             const outputMint = isBuy ? swapEvent.tokenOutputs[0].mint : 'So11111111111111111111111111111111111111112';
 
-            log(LOG_LEVELS.INFO, `${event[0].description}`, true, true);
+            log(LOG_LEVELS.INFO, `${event[0].description}`, true, true, inputMint, outputMint);
 
             // Check for new token detection (SOL amount between 149.5 and 150.5)
             const solAmount = isBuy ? swapEvent.nativeInput.amount : swapEvent.nativeOutput.amount;
