@@ -24,41 +24,55 @@ function logToFile(fileName, message) {
     fs.appendFileSync(path.join(logDir, fileName), message);
 }
 
-function log(level, message, sendToDiscord = false, sendToConsole = true) {
-      const timestamp = new Date().toISOString();
-      const logMessage = `[${timestamp}] [${level}] ${message}`;
-  
-      if (sendToConsole) {
-          console.log(logMessage);
-      }
-  
-      if (sendToDiscord) {
-          const embed = new EmbedBuilder()
-              .setTimestamp();
-  
-          // Set color based on the action type
-          if (message.toLowerCase().includes('buy')) {
-              embed.setColor('#00FF00'); // Green for buy
-          } else if (message.toLowerCase().includes('sell')) {
-              embed.setColor('#FF0000'); // Red for sell
-          } else {
-              embed.setColor('#00FFFF'); // Cyan for other info
-          }
-  
-          // Replace wallet addresses with clickable links
-          const replaceWalletAddresses = (text) => {
-              return text.replace(/\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/g, (address) => {
-                  return `[${address}](https://solscan.io/account/${address})`;
-              });
-          };
-  
-          let processedMessage = replaceWalletAddresses(message);
-  
-          embed.setDescription(processedMessage);
-  
-          webhookClient.send({ embeds: [embed] });
-      }
-  }
+function log(level, message, sendToDiscord = false, sendToConsole = true, inputMint = '', outputMint = '') {
+    const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    const logMessage = `[${timestamp}] [${level}] ${message}`;
+
+    if (sendToConsole) {
+        console.log(logMessage);
+    }
+
+    if (sendToDiscord) {
+        const embed = new EmbedBuilder()
+            .setTimestamp();
+
+        // Set color based on the action type
+        if (message.toLowerCase().includes('buy')) {
+            embed.setColor('#00FF00'); // Green for buy
+        } else if (message.toLowerCase().includes('sell')) {
+            embed.setColor('#FF0000'); // Red for sell
+        } else {
+            embed.setColor('#00FFFF'); // Cyan for other info
+        }
+
+        // Replace wallet addresses with clickable links
+        const replaceWalletAddresses = (text) => {
+            return text.replace(/\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/g, (address) => {
+                return `[${address}](https://solscan.io/account/${address})`;
+            });
+        };
+
+        // Replace token names with Dexscreener links
+        const replaceTokens = (text) => {
+            return text.replace(/(\d+(\.\d+)?\s*([A-Za-z]+))/g, (match, p1, p2, token) => {
+                token = token.toUpperCase();
+                if (token === 'SOL') {
+                    return `[${match}](https://dexscreener.com/solana/So11111111111111111111111111111111111111112)`;
+                } else {
+                    const mint = token === inputMint ? inputMint : outputMint;
+                    return `[${match}](https://dexscreener.com/solana/${mint})`;
+                }
+            });
+        };
+
+        let processedMessage = replaceWalletAddresses(message);
+        processedMessage = replaceTokens(processedMessage);
+
+        embed.setDescription(processedMessage);
+
+        webhookClient.send({ embeds: [embed] });
+    }
+}
 
 function logTransaction(tx) {
     const jsonData = JSON.stringify(tx, null, 2);
