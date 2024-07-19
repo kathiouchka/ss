@@ -27,47 +27,40 @@ function logToFile(fileName, message) {
     fs.appendFileSync(path.join(logDir, fileName), message);
 }
 
-function sendToDiscord(level, message) {
-    if (!DISCORD_WEBHOOK_URL) {
-        console.warn('Discord webhook URL not set. Skipping Discord logging.');
-        return;
-    }
-
-    const formattedMessage = formatLogMessage(level, message);
-    const color = getColorForLevel(level);
-
-    fetch(DISCORD_WEBHOOK_URL, {
+async function sendToDiscord(message) {
+    try {
+      const response = await fetch(process.env.DISCORD_WEBHOOK_URL, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            embeds: [{
-                description: `\`\`\`ansi\n${formattedMessage}\`\`\``,
-                color: color
-            }]
-        }),
-    }).catch(error => {
-        console.error(`Error sending log to Discord: ${error.message}`);
-    });
-}
-
-function getColorForLevel(level) {
-    switch (level) {
-        case LOG_LEVELS.ERROR:
-            return 0xFF0000; // Red
-        case LOG_LEVELS.WARN:
-            return 0xFFFF00; // Yellow
-        case LOG_LEVELS.INFO:
-            return 0x00FFFF; // Cyan
-        case LOG_LEVELS.DEBUG:
-            return 0x808080; // Gray
-        default:
-            return 0xFFFFFF; // White
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: message }),
+      });
+  
+      if (!response.ok) {
+        console.error('Failed to send message to Discord');
+      }
+    } catch (error) {
+      console.error('Error sending message to Discord:', error);
     }
-}
+  }
 
-function log(level, message, consoleOutput = true, sendDiscord = false) {
+function formatDiscordMessage(message, mint) {
+    const seller = process.env.SELLER || '';
+    const distrib = process.env.DISTRIB || '';
+  
+    // Replace wallet addresses with names if available
+    message = message.replace(seller, `[${process.env.SELLER_NAME || seller}](https://solscan.io/account/${seller})`);
+    message = message.replace(distrib, `[${process.env.DISTRIB_NAME || distrib}](https://solscan.io/account/${distrib})`);
+  
+    // Add token mint information if available
+    if (mint) {
+      message += `\nToken Mint: \`${mint}\``;
+      message += `\n[View on DEXScreener](https://dexscreener.com/solana/${mint})`;
+    }
+  
+    return message;
+  }
+
+function log(level, message, consoleOutput = true, sendDiscord = false, mint = null) {
     const formattedMessage = formatLogMessage(level, message);
     logToFile('application.log', formattedMessage);
 
@@ -89,7 +82,7 @@ function log(level, message, consoleOutput = true, sendDiscord = false) {
     }
 
     if (sendDiscord) {
-        sendToDiscord(level, message)
+        sendToDiscord(formatDiscordMessage(message, mint));
     }
 }
 
