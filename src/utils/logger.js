@@ -52,17 +52,22 @@ function log(level, message, sendToDiscord = false, sendToConsole = true, inputM
             });
         };
 
-        // Replace token names with Dexscreener links
-        const replaceTokens = (text) => {
-            return text.replace(/(\d+(\.\d+)?\s*([A-Za-z]+))/g, (match, p1, p2, token) => {
-                token = token.toUpperCase();
-                if (token === 'SOL') {
-                    return `[${match}](https://dexscreener.com/solana/So11111111111111111111111111111111111111112)`;
+        const replaceTokens = (text, inputMint, outputMint) => {
+            const dexscreenerBaseUrl = "https://dexscreener.com/solana";
+            const solMint = "So11111111111111111111111111111111111111112";
+        
+            return text.split(' ').map(word => {
+                const upperWord = word.toUpperCase();
+                if (upperWord === inputMint.toUpperCase()) {
+                    const mint = (upperWord === 'SOL') ? solMint : inputMint;
+                    return `[${word}](${dexscreenerBaseUrl}/${mint})`;
+                } else if (upperWord === outputMint.toUpperCase()) {
+                    const mint = (upperWord === 'SOL') ? solMint : outputMint;
+                    return `[${word}](${dexscreenerBaseUrl}/${mint})`;
                 } else {
-                    const mint = token === inputMint ? inputMint : outputMint;
-                    return `[${match}](https://dexscreener.com/solana/${mint})`;
+                    return word;
                 }
-            });
+            }).join(' ');
         };
 
         let processedMessage = replaceWalletAddresses(message);
