@@ -58,19 +58,18 @@ function log(level, message, sendToDiscord = false, sendToConsole = true, inputM
         
             const words = text.split(' ');
         
-            // Replace the 4th element (index 3) with the inputMint link
-            if (words[3].toUpperCase() === inputMint.toUpperCase()) {
+            // Check if words[3] exists and is defined before accessing toUpperCase
+            if (words[3] && words[3].toUpperCase() === inputMint.toUpperCase()) {
                 words[3] = `[${words[3]}](${dexscreenerBaseUrl}/${inputMint})`;
             }
         
-            // Replace the 7th element (index 6) with the outputMint link
-            if (words[6].toUpperCase() === outputMint.toUpperCase()) {
+            // Check if words[6] exists and is defined before accessing toUpperCase
+            if (words[6] && words[6].toUpperCase() === outputMint.toUpperCase()) {
                 words[6] = `[${words[6]}](${dexscreenerBaseUrl}/${solMint})`;
             }
         
             return words.join(' ');
         };
-
         let processedMessage = replaceWalletAddresses(message);
         processedMessage = replaceTokens(processedMessage);
 
