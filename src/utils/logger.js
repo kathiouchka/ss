@@ -53,13 +53,13 @@ function log(level, message, sendToDiscord = false, sendToConsole = true, inputM
         
             return text.replace(tokenRegex, (match, amount, tokenName) => {
                 let mint;
-                if (tokenName.toUpperCase() === 'SOL') {
+                if (tokenName === 'SOL') {
                     mint = SOL_MINT;
                 } else {
                     mint = nonSolMint;
                 }
         
-                return `${amount}[${tokenName}](https://dexscreener.com/solana/${mint.toLowerCase()})`;
+                return `${amount}[${tokenName}](https://dexscreener.com/solana/${mint})`;
             });
         };
         let processedMessage = replaceWalletAddresses(message);
