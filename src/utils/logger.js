@@ -39,8 +39,21 @@ function log(level, message, sendToDiscord = false, sendToConsole = true, inputM
 
         // Replace wallet addresses with clickable links
         const replaceWalletAddresses = (text) => {
+            // Load environment variables into a dictionary
+            const env = process.env;
+            const addressMap = {};
+        
+            // Iterate through environment variables and map addresses to variable names
+            for (const [key, value] of Object.entries(env)) {
+                addressMap[value] = key;
+            }
+        
             return text.replace(/\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/g, (address) => {
-                return `[${address}](https://solscan.io/account/${address})`;
+                if (addressMap[address]) {
+                    return `[${addressMap[address]}](https://solscan.io/account/${address})`;
+                } else {
+                    return `[${address}](https://solscan.io/account/${address})`;
+                }
             });
         };
 
