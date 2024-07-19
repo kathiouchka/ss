@@ -56,18 +56,19 @@ function log(level, message, sendToDiscord = false, sendToConsole = true, inputM
             const dexscreenerBaseUrl = "https://dexscreener.com/solana";
             const solMint = "So11111111111111111111111111111111111111112";
         
-            return text.split(' ').map(word => {
-                const upperWord = word.toUpperCase();
-                if (upperWord === inputMint.toUpperCase()) {
-                    const mint = (upperWord === 'SOL') ? solMint : inputMint;
-                    return `[${word}](${dexscreenerBaseUrl}/${mint})`;
-                } else if (upperWord === outputMint.toUpperCase()) {
-                    const mint = (upperWord === 'SOL') ? solMint : outputMint;
-                    return `[${word}](${dexscreenerBaseUrl}/${mint})`;
-                } else {
-                    return word;
-                }
-            }).join(' ');
+            const words = text.split(' ');
+        
+            // Replace the 4th element (index 3) with the inputMint link
+            if (words[3].toUpperCase() === inputMint.toUpperCase()) {
+                words[3] = `[${words[3]}](${dexscreenerBaseUrl}/${inputMint})`;
+            }
+        
+            // Replace the 7th element (index 6) with the outputMint link
+            if (words[6].toUpperCase() === outputMint.toUpperCase()) {
+                words[6] = `[${words[6]}](${dexscreenerBaseUrl}/${solMint})`;
+            }
+        
+            return words.join(' ');
         };
 
         let processedMessage = replaceWalletAddresses(message);
