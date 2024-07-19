@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 import { WebhookClient, EmbedBuilder } from 'discord.js';
 
@@ -45,14 +44,22 @@ function log(level, message, sendToDiscord = false, sendToConsole = true, inputM
             });
         };
 
-        const replaceTokens = (text) => {
+        const replaceTokens = (text, inputMint, outputMint) => {
             const tokenRegex = /\b(\d+(?:\.\d+)?\s+)([A-Za-z]+)\b/g;
+            const SOL_MINT = 'So11111111111111111111111111111111111111112';
+            
+            // Determine which is the non-SOL mint
+            const nonSolMint = inputMint === SOL_MINT ? outputMint : inputMint;
+        
             return text.replace(tokenRegex, (match, amount, tokenName) => {
-                if (inputMint == "So11111111111111111111111111111111111111112"){
-                return `${amount}[${tokenName}](https://dexscreener.com/solana/${inputMint.toLowerCase()})`;
+                let mint;
+                if (tokenName.toUpperCase() === 'SOL') {
+                    mint = SOL_MINT;
                 } else {
-                return `${amount}[${tokenName}](https://dexscreener.com/solana/${outputMint.toLowerCase()})`;
-         } 
+                    mint = nonSolMint;
+                }
+        
+                return `${amount}[${tokenName}](https://dexscreener.com/solana/${mint.toLowerCase()})`;
             });
         };
         let processedMessage = replaceWalletAddresses(message);
