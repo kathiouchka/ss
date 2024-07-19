@@ -79,7 +79,10 @@ app.post('/webhook', async (req, res) => {
                 buyWaitAndSell(NEW_TOKEN_ADDRESS);
             }
         } else if (event[0].type === 'TRANSFER') {
-            log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, true, true, event[0].tokenTransfers[0].mint);
+            log(LOG_LEVELS.INFO, `D1scription: ${event[0].description}`, true, true, event[0].tokenTransfers[0].mint);
+            log(LOG_LEVELS.INFO, `D2scription: ${event[0].description}`, true, true, event[0].tokenTransfers.mint);
+            log(LOG_LEVELS.INFO, `D3scription: ${event[0].description}`, true, true, event.tokenTransfers.mint);
+            log(LOG_LEVELS.INFO, `D4scription: ${event[0].description}`, true, true, event.tokenTransfers[0].mint);
         } else {
             log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, true, true);
         }
