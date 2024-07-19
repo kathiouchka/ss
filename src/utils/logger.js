@@ -24,6 +24,8 @@ function logToFile(fileName, message) {
 }
 
 function log(level, message, sendToDiscord = false, sendToConsole = true, inputMint = '', outputMint = '') {
+    console.log(inputMint)
+    console.log(outputMint)
     const timestamp = new Date().toISOString();
     const logMessage = `[${timestamp}] [${level}] ${message}`;
 
