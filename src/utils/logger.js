@@ -25,7 +25,7 @@ function logToFile(fileName, message) {
 }
 
 function log(level, message, sendToDiscord = false, sendToConsole = true, inputMint = '', outputMint = '') {
-    const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    const timestamp = new Date().toISOString();
     const logMessage = `[${timestamp}] [${level}] ${message}`;
 
     if (sendToConsole) {
@@ -36,14 +36,7 @@ function log(level, message, sendToDiscord = false, sendToConsole = true, inputM
         const embed = new EmbedBuilder()
             .setTimestamp();
 
-        // Set color based on the action type
-        if (message.toLowerCase().includes('buy')) {
-            embed.setColor('#00FF00'); // Green for buy
-        } else if (message.toLowerCase().includes('sell')) {
-            embed.setColor('#FF0000'); // Red for sell
-        } else {
-            embed.setColor('#00FFFF'); // Cyan for other info
-        }
+        embed.setColor('#00FFFF'); // Cyan for other info
 
         // Replace wallet addresses with clickable links
         const replaceWalletAddresses = (text) => {
@@ -52,23 +45,15 @@ function log(level, message, sendToDiscord = false, sendToConsole = true, inputM
             });
         };
 
-        const replaceTokens = (text, inputMint, outputMint) => {
-            const dexscreenerBaseUrl = "https://dexscreener.com/solana";
-            const solMint = "So11111111111111111111111111111111111111112";
-        
-            const words = text.split(' ');
-        
-            // Check if words[3] exists and is defined before accessing toUpperCase
-            if (words[3] && words[3] === inputMint) {
-                words[3] = `[${words[3]}](${dexscreenerBaseUrl}/${inputMint})`;
-            }
-        
-            // Check if words[6] exists and is defined before accessing toUpperCase
-            if (words[6] && words[6] === outputMint) {
-                words[6] = `[${words[6]}](${dexscreenerBaseUrl}/${solMint})`;
-            }
-        
-            return words.join(' ');
+        const replaceTokens = (text) => {
+            const tokenRegex = /\b(\d+(?:\.\d+)?\s+)([A-Za-z]+)\b/g;
+            return text.replace(tokenRegex, (match, amount, tokenName) => {
+                if (inputMint == "So11111111111111111111111111111111111111112"){
+                return `${amount}[${tokenName}](https://dexscreener.com/solana/${inputMint.toLowerCase()})`;
+                } else {
+                return `${amount}[${tokenName}](https://dexscreener.com/solana/${outputMint.toLowerCase()})`;
+         } 
+            });
         };
         let processedMessage = replaceWalletAddresses(message);
         processedMessage = replaceTokens(processedMessage);
