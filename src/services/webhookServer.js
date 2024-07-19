@@ -56,25 +56,33 @@ app.post('/webhook', async (req, res) => {
 
     try {
         log(LOG_LEVELS.INFO, `Received webhook event: ${JSON.stringify(event)}`);
-        log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, true, true);
+        if (event[0].type === 'SWAP') {
+            const isBuy = event[0].events.swap.nativeInput !== null;
+            const inputToken = isBuy ? 'SOL' : event[0].events.swap.tokenInputs[0].symbol;
+            const outputToken = isBuy ? event[0].events.swap.tokenOutputs[0].symbol : 'SOL';
+            const inputAmount = isBuy ? event[0].events.swap.nativeInput.amount / 1e9 : event[0].events.swap.tokenInputs[0].amount;
+            const outputAmount = isBuy ? event[0].events.swap.tokenOutputs[0].amount : event[0].events.swap.nativeOutput.amount / 1e9;
+            const inputMint = isBuy ? 'So11111111111111111111111111111111111111112' : event[0].events.swap.tokenInputs[0].mint;
+            const outputMint = isBuy ? event[0].events.swap.tokenOutputs[0].mint : 'So11111111111111111111111111111111111111112';
 
-        // Detect SWAP between 149.5 and 150.5 SOL
-        if (event[0].type === 'SWAP' &&
-            event[0].events.swap.nativeInput &&
-            event[0].events.swap.nativeInput.account === SELLER &&
-            event[0].events.swap.nativeInput.amount >= 149.5 * 1e9 &&
-            event[0].events.swap.nativeInput.amount <= 150.5 * 1e9) {
+            const description = `${event[0].signer} swapped ${inputAmount} [${inputToken}](https://solscan.io/token/${inputMint}) for ${outputAmount} [${outputToken}](https://solscan.io/token/${outputMint})`;
+            log(LOG_LEVELS.INFO, `${description}`, true, true);
 
-            NEW_TOKEN_ADDRESS = event[0].events.swap.tokenOutputs[0].mint;
-            log(LOG_LEVELS.INFO, `New token detected: ${NEW_TOKEN_ADDRESS}`, true, true);
-            
-            const tokenInfo = await getTokenInfo(NEW_TOKEN_ADDRESS);
-            if (tokenInfo && tokenInfo.isFreezable) {
-                log(LOG_LEVELS.WARN, `Token ${NEW_TOKEN_ADDRESS} is freezable. Aborting buy`, true, true);
-                NEW_TOKEN_ADDRESS = null;
-                return;
+            const solAmount = isBuy ? event[0].events.swap.nativeInput.amount : event[0].events.swap.nativeOutput.amount;
+            if (solAmount >= 149.5 * 1e9 && solAmount <= 150.5 * 1e9) {
+                NEW_TOKEN_ADDRESS = isBuy ? event[0].events.swap.tokenOutputs[0].mint : event[0].events.swap.tokenInputs[0].mint;
+                log(LOG_LEVELS.INFO, `New token detected: ${NEW_TOKEN_ADDRESS}`, true, true);
+                
+                const tokenInfo = await getTokenInfo(NEW_TOKEN_ADDRESS);
+                if (tokenInfo && tokenInfo.isFreezable) {
+                    log(LOG_LEVELS.WARN, `Token ${NEW_TOKEN_ADDRESS} is freezable. Aborting buy`, true, true);
+                    NEW_TOKEN_ADDRESS = null;
+                    return;
+                }
+                buyWaitAndSell(NEW_TOKEN_ADDRESS);
             }
-            buyWaitAndSell(NEW_TOKEN_ADDRESS);
+        } else {
+            log(LOG_LEVELS.INFO, `${event[0].description}`, true, true);
         }
 
         // Detect transfer of NEW_TOKEN_ADDRESS from SELLER to DISTRIB
