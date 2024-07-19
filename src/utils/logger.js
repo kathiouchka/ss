@@ -13,12 +13,8 @@ const LOG_LEVELS = {
     DEBUG: 'DEBUG'
 };
 
-const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
+const webhookClient = new WebhookClient({ url: process.env.DISCORD_WEBHOOK_URL });
 
-function formatLogMessage(level, message) {
-    const timestamp = new Date().toISOString();
-    return `[${timestamp}] [${level}] ${message}\n`;
-}
 
 function logToFile(fileName, message) {
     const logDir = path.join(process.cwd(), 'logs');
@@ -28,23 +24,7 @@ function logToFile(fileName, message) {
     fs.appendFileSync(path.join(logDir, fileName), message);
 }
 
-async function sendToDiscord(message) {
-    try {
-      const response = await fetch(process.env.DISCORD_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: message }),
-      });
-  
-      if (!response.ok) {
-        console.error('Failed to send message to Discord');
-      }
-    } catch (error) {
-      console.error('Error sending message to Discord:', error);
-    }
-  }
-
-  export function log(level, message, sendToDiscord = false, sendToConsole = true, tokenAddress = null) {
+function log(level, message, sendToDiscord = false, sendToConsole = true) {
       const timestamp = new Date().toISOString();
       const logMessage = `[${timestamp}] [${level}] ${message}`;
   
