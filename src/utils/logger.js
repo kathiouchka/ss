@@ -24,8 +24,6 @@ function logToFile(fileName, message) {
 }
 
 function log(level, message, sendToDiscord = false, sendToConsole = true, inputMint = '', outputMint = '') {
-    console.log(inputMint)
-    console.log(outputMint)
     const timestamp = new Date().toISOString();
     const logMessage = `[${timestamp}] [${level}] ${message}`;
 
@@ -47,14 +45,11 @@ function log(level, message, sendToDiscord = false, sendToConsole = true, inputM
         };
 
         const replaceTokens = (text, inputMint, outputMint) => {
-            console.log(inputMint)
-            console.log(outputMint)
             const tokenRegex = /\b(\d+(?:\.\d+)?\s+)([A-Za-z]+)\b/g;
             const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
             // Determine which is the non-SOL mint
             const nonSolMint = inputMint === SOL_MINT ? outputMint : inputMint;
-            console.log(nonSolMint)
 
             return text.replace(tokenRegex, (match, amount, tokenName) => {
                 let mint;
@@ -68,7 +63,7 @@ function log(level, message, sendToDiscord = false, sendToConsole = true, inputM
             });
         };
         let processedMessage = replaceWalletAddresses(message);
-        processedMessage = replaceTokens(processedMessage);
+        processedMessage = replaceTokens(processedMessage, inputMint, outputMint);
 
         embed.setDescription(processedMessage);
 
