@@ -52,16 +52,7 @@ function log(level, message, sendToDiscord = false, sendToConsole = true) {
               });
           };
   
-          // Replace token names with clickable DEXscreener links
-          const replaceTokenNames = (text) => {
-              const tokenRegex = /\b(\d+(?:\.\d+)?\s+)([A-Za-z]+)\b/g;
-              return text.replace(tokenRegex, (match, amount, tokenName) => {
-                  return `${amount}[${tokenName}](https://dexscreener.com/solana/${tokenName.toLowerCase()})`;
-              });
-          };
-  
           let processedMessage = replaceWalletAddresses(message);
-          processedMessage = replaceTokenNames(processedMessage);
   
           embed.setDescription(processedMessage);
   

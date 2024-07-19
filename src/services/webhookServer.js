@@ -59,15 +59,10 @@ app.post('/webhook', async (req, res) => {
         if (event[0].type === 'SWAP') {
             const swapEvent = event[0].events.swap;
             const isBuy = swapEvent.nativeInput !== null;
-            const inputToken = isBuy ? 'SOL' : swapEvent.tokenInputs[0].mint;
-            const outputToken = isBuy ? swapEvent.tokenOutputs[0].mint : 'SOL';
-            const inputAmount = isBuy ? swapEvent.nativeInput.amount / 1e9 : swapEvent.tokenInputs[0].tokenAmount;
-            const outputAmount = isBuy ? swapEvent.tokenOutputs[0].tokenAmount / (10 ** swapEvent.tokenOutputs[0].rawTokenAmount.decimals) : swapEvent.nativeOutput.amount / 1e9;
             const inputMint = isBuy ? 'So11111111111111111111111111111111111111112' : swapEvent.tokenInputs[0].mint;
             const outputMint = isBuy ? swapEvent.tokenOutputs[0].mint : 'So11111111111111111111111111111111111111112';
 
-            const description = `${event[0].accountData[0].account} swapped ${inputAmount} [${inputToken}](https://solscan.io/token/${inputMint}) for ${outputAmount} [${outputToken}](https://solscan.io/token/${outputMint})`;
-            log(LOG_LEVELS.INFO, `Description: ${description}`, true, true);
+            log(LOG_LEVELS.INFO, `${event[0].description}`, true, true);
 
             // Check for new token detection (SOL amount between 149.5 and 150.5)
             const solAmount = isBuy ? swapEvent.nativeInput.amount : swapEvent.nativeOutput.amount;
