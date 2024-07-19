@@ -59,12 +59,12 @@ function log(level, message, sendToDiscord = false, sendToConsole = true, inputM
             const words = text.split(' ');
         
             // Check if words[3] exists and is defined before accessing toUpperCase
-            if (words[3] && words[3].toUpperCase() === inputMint.toUpperCase()) {
+            if (words[3] && words[3] === inputMint) {
                 words[3] = `[${words[3]}](${dexscreenerBaseUrl}/${inputMint})`;
             }
         
             // Check if words[6] exists and is defined before accessing toUpperCase
-            if (words[6] && words[6].toUpperCase() === outputMint.toUpperCase()) {
+            if (words[6] && words[6] === outputMint) {
                 words[6] = `[${words[6]}](${dexscreenerBaseUrl}/${solMint})`;
             }
         
