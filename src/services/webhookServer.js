@@ -84,7 +84,9 @@ app.post('/webhook', async (req, res) => {
                 buyWaitAndSell(currentTokenState.NEW_TOKEN_ADDRESS);
             }
         } else if (event[0].type === 'TRANSFER' && event[0].nativeTransfers && event[0].nativeTransfers.length > 0 && !event[0].tokenTransfers) {
-            log(LOG_LEVELS.INFO, `${event[0].description}`, true, true, "So11111111111111111111111111111111111111112");
+            event[0].nativeTransfers.forEach(transfer => {
+                log(LOG_LEVELS.INFO, `Transfer of ${transfer.amount / 1e9} SOL from ${transfer.fromUserAccount} to ${transfer.toUserAccount}`, true, true, "So11111111111111111111111111111111111111112");
+            });
         } else if (event[0].type === 'TRANSFER') {
             log(LOG_LEVELS.INFO, `${event[0].description}`, true, true, event[0].tokenTransfers[0].mint);
         } else {
@@ -120,7 +122,7 @@ app.post('/webhook', async (req, res) => {
             event[0].type === 'TRANSFER' &&
             event[0].tokenTransfers[0].toUserAccount === SELLER &&
             event[0].tokenTransfers[0].mint === currentTokenState.address) {
-            
+
             currentTokenState.SELLER_RECEIVE_COUNT++;
             log(LOG_LEVELS.INFO, `SELLER received the new token. Count: ${currentTokenState.SELLER_RECEIVE_COUNT}`, true, true);
 

@@ -30,7 +30,25 @@ async function main() {
   }
 }
 
+function handleGlobalErrors(error) {
+  log(LOG_LEVELS.ERROR, `Unhandled error: ${error.message}`);
+  log(LOG_LEVELS.ERROR, `Stack trace: ${error.stack}`);
+  
+  // Optionally, you can add more specific error handling here
+  if (error.message.includes("503 Service Unavailable")) {
+    log(LOG_LEVELS.WARN, "RPC service is currently unavailable. The program will continue running, but some operations may fail.");
+  }
+  
+  // Instead of crashing, we'll keep the program running
+  setTimeout(() => {
+    log(LOG_LEVELS.INFO, "Attempting to recover from error...");
+    main().catch(handleGlobalErrors);
+  }, 10000); // Wait 10 seconds before attempting to recover
+}
+
 log(LOG_LEVELS.INFO, 'About to call main function');
-main().catch(error => {
-  log(LOG_LEVELS.ERROR, `Unhandled error in main: ${error.message}`);
-});
+main().catch(handleGlobalErrors);
+
+// Add these global error handlers
+process.on('uncaughtException', handleGlobalErrors);
+process.on('unhandledRejection', handleGlobalErrors);
