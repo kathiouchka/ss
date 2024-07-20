@@ -5,7 +5,6 @@ import dotenv from 'dotenv';
 import { Wallet } from '@project-serum/anchor';
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { log, LOG_LEVELS, logTransaction, logDetailedInfo } from '../utils/logger.js';
-import { getTokenInfo } from '../utils/tokenInfo.js';
 
 dotenv.config();
 
@@ -24,7 +23,6 @@ const connection = new Connection(RPC_ENDPOINT, 'confirmed', {
 const solAddress = "So11111111111111111111111111111111111111112";
 // Solana gas fee
 const SOLANA_GAS_FEE_PRICE = 0.000005 * LAMPORTS_PER_SOL;  //Solana accounts require a minimum amount of SOL in order to exist on the blockchain, this is called rent-exempt account.
-let slipTarget = 5;
 
 function sleep(ms) {
     return new Promise((resolve) => {
@@ -34,7 +32,7 @@ function sleep(ms) {
 
 const wallet = new Wallet(Keypair.fromSecretKey(bs58.decode(privateKey)));
 
-async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true) {
+async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, slippage = 10) {
     const maxRetries = 3;
     let retryCount = 0;
     let success = false;
@@ -66,7 +64,7 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true) {
                 log(LOG_LEVELS.INFO, `Starting sell transaction for ${percentage}% of ${tokenAddress}`);
             }
 
-            const response = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&onlyDirectRoutes=true`);
+            const response = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&onlyDirectRoutes=true&slippageBps=${slippage * 100}`);
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -110,10 +108,10 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true) {
                 skipPreflight: true,
                 maxRetries: 5,
                 commitment: 'processed',
-                timeout: 30000 // 30 seconds timeout
+                timeout: 40000 // 40 seconds timeout
             });
 
-            log(LOG_LEVELS.INFO, `${isBuy ? 'Buy' : 'Sell'} Order:: https://solscan.io/tx/${txid}`);
+            log(LOG_LEVELS.INFO, `${isBuy ? 'Buy' : 'Sell'} Order:: https://solscan.io/tx/${txid}`, true, true);
             success = true;
 
             const txInfo = await connection.getTransaction(txid, {

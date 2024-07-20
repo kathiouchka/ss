@@ -14,15 +14,20 @@ app.use(bodyParser.json());
 const SELLER = process.env.SELLER;
 const DISTRIB = process.env.DISTRIB;
 
-let NEW_TOKEN_ADDRESS = null;
-let SELLER_TRANSFERED = false;
-let TOKEN_BOUGHT = false;
+
+let currentTokenState = {
+    NEW_TOKEN_ADDRESS: null,
+    SELLER_TRANSFERED: false,
+    TOKEN_BOUGHT: false,
+    SELLER_RECEIVE_COUNT: 0,
+    SOLD: false
+};
 
 async function buyWaitAndSell(tokenAddress) {
     try {
         // Buy
         log(LOG_LEVELS.INFO, `Initiating buy for ${tokenAddress}`, true, true);
-        const buySuccess = await tradeTokenWithJupiter(tokenAddress, 20, true);
+        const buySuccess = await tradeTokenWithJupiter(tokenAddress, 20, true, 10);
         if (!buySuccess) {
             log(LOG_LEVELS.ERROR, `Buy transaction failed for ${tokenAddress}`, true, true);
             return;
@@ -35,7 +40,7 @@ async function buyWaitAndSell(tokenAddress) {
 
         // Sell
         log(LOG_LEVELS.INFO, `Initiating sell for ${tokenAddress}`, true, true);
-        const sellSuccess = await tradeTokenWithJupiter(tokenAddress, 100, false);
+        const sellSuccess = await tradeTokenWithJupiter(tokenAddress, 100, false, 10);
         if (!sellSuccess) {
             log(LOG_LEVELS.ERROR, `Sell transaction failed for ${tokenAddress}`, true, true);
             return;
@@ -66,17 +71,17 @@ app.post('/webhook', async (req, res) => {
 
             // Check for new token detection (SOL amount between 149.5 and 150.5)
             const solAmount = isBuy ? swapEvent.nativeInput.amount : swapEvent.nativeOutput.amount;
-            if (solAmount >= 149.5 * 1e9 && solAmount <= 150.5 * 1e9) {
-                NEW_TOKEN_ADDRESS = isBuy ? swapEvent.tokenOutputs[0].mint : swapEvent.tokenInputs[0].mint;
-                log(LOG_LEVELS.INFO, `New token detected: ${NEW_TOKEN_ADDRESS}`, true, true);
+            if (solAmount >= 149.5 * 1e9 && solAmount <= 150.5 * 1e9 && event[0].tokenTransfers[0].fromUserAccount === SELLER) {
+                currentTokenState.NEW_TOKEN_ADDRESS = isBuy ? swapEvent.tokenOutputs[0].mint : swapEvent.tokenInputs[0].mint;
+                log(LOG_LEVELS.INFO, `New token detected: ${currentTokenState.NEW_TOKEN_ADDRESS}`, true, true);
 
-                const tokenInfo = await getTokenInfo(NEW_TOKEN_ADDRESS);
+                const tokenInfo = await getTokenInfo(currentTokenState.NEW_TOKEN_ADDRESS);
                 if (tokenInfo && tokenInfo.isFreezable) {
-                    log(LOG_LEVELS.WARN, `Token ${NEW_TOKEN_ADDRESS} is freezable. Aborting buy`, true, true);
-                    NEW_TOKEN_ADDRESS = null;
+                    log(LOG_LEVELS.WARN, `Token ${currentTokenState.NEW_TOKEN_ADDRESS} is freezable. Aborting buy`, true, true);
+                    currentTokenState.NEW_TOKEN_ADDRESS = null;
                     return res.status(200).send('Token is freezable. Aborting buy');
                 }
-                buyWaitAndSell(NEW_TOKEN_ADDRESS);
+                buyWaitAndSell(currentTokenState.NEW_TOKEN_ADDRESS);
             }
         } else if (event[0].type === 'TRANSFER' && event[0].nativeTransfers && event[0].nativeTransfers.length > 0 && !event[0].tokenTransfers) {
             log(LOG_LEVELS.INFO, `${event[0].description}`, true, true, "So11111111111111111111111111111111111111112");
@@ -87,34 +92,53 @@ app.post('/webhook', async (req, res) => {
         }
 
         // Detect transfer of NEW_TOKEN_ADDRESS from SELLER to DISTRIB
-        if (NEW_TOKEN_ADDRESS &&
+        if (currentTokenState.NEW_TOKEN_ADDRESS &&
             event[0].type === 'TRANSFER' &&
             event[0].tokenTransfers[0].fromUserAccount === SELLER &&
             event[0].tokenTransfers[0].toUserAccount === DISTRIB &&
-            event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
+            event[0].tokenTransfers[0].mint === currentTokenState.NEW_TOKEN_ADDRESS) {
 
             log(LOG_LEVELS.INFO, 'SELLER transferred the new token to DISTRIB');
-            SELLER_TRANSFERED = true;
+            currentTokenState.SELLER_TRANSFERED = true;
         }
 
         // Detect transfer of NEW_TOKEN_ADDRESS from DISTRIB
-        if (NEW_TOKEN_ADDRESS && SELLER_TRANSFERED &&
+        if (currentTokenState.NEW_TOKEN_ADDRESS && currentTokenState.SELLER_TRANSFERED &&
             event[0].type === 'TRANSFER' &&
             event[0].tokenTransfers[0].fromUserAccount === DISTRIB &&
-            event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
+            event[0].tokenTransfers[0].toUserAccount === SELLER &&
+            event[0].tokenTransfers[0].mint === currentTokenState.NEW_TOKEN_ADDRESS) {
 
             log(LOG_LEVELS.INFO, 'DISTRIB distributed. Initiating buy.', true, true);
-            await tradeTokenWithJupiter(NEW_TOKEN_ADDRESS, 70, true);
-            TOKEN_BOUGHT = true;
+            await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 70, true, 10);
+            currentTokenState.TOKEN_BOUGHT = true;
         }
 
         // Detect transfer of NEW_TOKEN_ADDRESS to SELLER
-        if (NEW_TOKEN_ADDRESS && TOKEN_BOUGHT &&
+        // Detect transfer of current token to SELLER
+        if (currentTokenState.NEW_TOKEN_ADDRESS && currentTokenState.TOKEN_BOUGHT && !currentTokenState.SOLD &&
             event[0].type === 'TRANSFER' &&
             event[0].tokenTransfers[0].toUserAccount === SELLER &&
-            event[0].tokenTransfers[0].mint === NEW_TOKEN_ADDRESS) {
-            log(LOG_LEVELS.INFO, `SELLER received the new token. Initiating sell`, true, true);
-            await tradeTokenWithJupiter(NEW_TOKEN_ADDRESS, 100, false);
+            event[0].tokenTransfers[0].mint === currentTokenState.address) {
+            
+            currentTokenState.SELLER_RECEIVE_COUNT++;
+            log(LOG_LEVELS.INFO, `SELLER received the new token. Count: ${currentTokenState.SELLER_RECEIVE_COUNT}`, true, true);
+
+            if (currentTokenState.SELLER_RECEIVE_COUNT === 2) {
+                log(LOG_LEVELS.INFO, `SELLER received the new token twice. Initiating sell`, true, true);
+                const sellSuccess = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 100, false, 10);
+                if (sellSuccess) {
+                    currentTokenState.SOLD = true;
+                    // Reset the state for the next token
+                    currentTokenState = {
+                        NEW_TOKEN_ADDRESS: null,
+                        SELLER_TRANSFERED: false,
+                        TOKEN_BOUGHT: false,
+                        SELLER_RECEIVE_COUNT: 0,
+                        SOLD: false
+                    };
+                }
+            }
         }
 
         res.status(200).send('Event processed successfully');
