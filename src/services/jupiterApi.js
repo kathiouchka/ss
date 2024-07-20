@@ -21,16 +21,43 @@ const connection = new Connection(RPC_ENDPOINT, 'confirmed', {
 });
 
 const solAddress = "So11111111111111111111111111111111111111112";
-// Solana gas fee
-const SOLANA_GAS_FEE_PRICE = 0.000005 * LAMPORTS_PER_SOL;  //Solana accounts require a minimum amount of SOL in order to exist on the blockchain, this is called rent-exempt account.
+const SOLANA_GAS_FEE_PRICE = 0.000005 * LAMPORTS_PER_SOL;
 
 function sleep(ms) {
     return new Promise((resolve) => {
-        setTimeout(resolve, ms); // ms
+        setTimeout(resolve, ms);
     });
 }
 
 const wallet = new Wallet(Keypair.fromSecretKey(bs58.decode(privateKey)));
+
+// PnL tracking
+let transactions = [];
+
+function recordTransaction(type, tokenAddress, amount, price) {
+    transactions.push({ type, tokenAddress, amount, price, timestamp: Date.now() });
+}
+
+function calculatePnL(tokenAddress) {
+    let buyTotal = 0;
+    let sellTotal = 0;
+    let buyAmount = 0;
+    let sellAmount = 0;
+
+    transactions.filter(t => t.tokenAddress === tokenAddress).forEach(t => {
+        if (t.type === 'buy') {
+            buyTotal += t.amount * t.price;
+            buyAmount += t.amount;
+        } else if (t.type === 'sell') {
+            sellTotal += t.amount * t.price;
+            sellAmount += t.amount;
+        }
+    });
+
+    const pnl = sellTotal - buyTotal;
+    const pnlPercentage = ((sellTotal / buyTotal) - 1) * 100;
+    log(LOG_LEVELS.INFO, `PnL for ${tokenAddress}: ${pnl.toFixed(4)} SOL (${pnlPercentage.toFixed(2)}%)`, true, true);
+}
 
 async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, slippage = 10) {
     const maxRetries = 3;
@@ -108,7 +135,7 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
                 skipPreflight: true,
                 maxRetries: 5,
                 commitment: 'processed',
-                timeout: 40000 // 40 seconds timeout
+                timeout: 40000
             });
 
             log(LOG_LEVELS.INFO, `${isBuy ? 'Buy' : 'Sell'} Order:: https://solscan.io/tx/${txid}`, true, true);
@@ -119,10 +146,19 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
             });
             logTransaction(txInfo);
 
+            // Record the transaction for PnL tracking
+            const price = routes.outAmount / routes.inAmount;
+            recordTransaction(isBuy ? 'buy' : 'sell', tokenAddress, amount, price);
+
+            // Calculate PnL after selling
+            if (!isBuy) {
+                calculatePnL(tokenAddress);
+            }
+
         } catch (error) {
             log(LOG_LEVELS.WARN, `Transaction failed, retrying (${retryCount + 1}/${maxRetries}). Error: ${error.message}`);
             retryCount++;
-            await sleep(5000); // Wait 5 seconds before retrying
+            await sleep(5000);
         }
     }
 
@@ -131,7 +167,7 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
         return false;
     }
 
-    await sleep(1000); // 1 second delay to avoid 429 too many requests
+    await sleep(1000);
     return success;
 }
 
