@@ -35,19 +35,28 @@ function log(level, message, sendToDiscord = false, sendToConsole = true, inputM
         const embed = new EmbedBuilder()
             .setTimestamp();
 
-        embed.setColor('#00FFFF'); // Cyan for other info
+        const SOL_MINT = 'So11111111111111111111111111111111111111112';
+        let embedColor = '#00FFFF'; // Default Cyan for other info
+
+        if (inputMint === SOL_MINT) {
+            embedColor = '#00FF00'; // Green
+        } else if (outputMint === SOL_MINT) {
+            embedColor = '#FF0000'; // Red
+        }
+
+        embed.setColor(embedColor);
 
         // Replace wallet addresses with clickable links
         const replaceWalletAddresses = (text) => {
             // Load environment variables into a dictionary
             const env = process.env;
             const addressMap = {};
-        
+
             // Iterate through environment variables and map addresses to variable names
             for (const [key, value] of Object.entries(env)) {
                 addressMap[value] = key;
             }
-        
+
             return text.replace(/\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/g, (address) => {
                 if (addressMap[address]) {
                     return `[${addressMap[address]}](https://solscan.io/account/${address})`;
@@ -59,7 +68,6 @@ function log(level, message, sendToDiscord = false, sendToConsole = true, inputM
 
         const replaceTokens = (text, inputMint, outputMint) => {
             const tokenRegex = /\b(\d+(?:\.\d+)?\s+)([A-Za-z]+)\b/g;
-            const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
             // Determine which is the non-SOL mint
             const nonSolMint = inputMint === SOL_MINT ? outputMint : inputMint;
