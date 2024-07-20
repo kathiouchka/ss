@@ -83,9 +83,11 @@ app.post('/webhook', async (req, res) => {
                 }
                 buyWaitAndSell(currentTokenState.NEW_TOKEN_ADDRESS);
             }
-        } else if (event[0].type === 'TRANSFER' && event[0].nativeTransfers && event[0].nativeTransfers.length == 1 && !event[0].tokenTransfers) {
+        } else if (event[0].type === 'TRANSFER' && event[0].nativeTransfers && event[0].nativeTransfers.length == 3 && !event[0].tokenTransfers) {
             log(LOG_LEVELS.INFO, `${event[0].description}`, true, true, "So11111111111111111111111111111111111111112");
         } else if (event[0].type === 'TRANSFER') {
+
+            log(LOG_LEVELS.INFO, `${event[0].nativeTransfers.length}`, true, true);
             log(LOG_LEVELS.INFO, `${event[0].description}`, true, true, event[0].tokenTransfers[0].mint);
         } else {
             log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, true, true);
