@@ -86,7 +86,11 @@ app.post('/webhook', async (req, res) => {
         } else if (event[0].type === 'TRANSFER' && event[0].nativeTransfers && event[0].nativeTransfers.length == 1 && event[0].tokenTransfers.length == 0) {
             log(LOG_LEVELS.INFO, `${event[0].description}`, true, true, "So11111111111111111111111111111111111111112");
         } else if (event[0].type === 'TRANSFER') {
-            log(LOG_LEVELS.INFO, `${event[0].description}`, true, true, event[0].tokenTransfers[0].mint);
+            if (event[0].tokenTransfers[0].mint) {
+                log(LOG_LEVELS.INFO, `${event[0].description}`, true, true, event[0].tokenTransfers[0].mint);
+            } else {
+                log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, true, true);
+            }
         } else {
             log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, true, true);
         }
