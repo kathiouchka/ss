@@ -27,7 +27,7 @@ async function buyWaitAndSell(tokenAddress) {
     try {
         // Buy
         log(LOG_LEVELS.INFO, `Initiating buy for ${tokenAddress}`, true, true);
-        const buySuccess = await tradeTokenWithJupiter(tokenAddress, 50, true, 20);
+        const buySuccess = await tradeTokenWithJupiter(tokenAddress, 60, true, 20);
         if (!buySuccess) {
             log(LOG_LEVELS.ERROR, `Buy transaction failed for ${tokenAddress}`, true, true);
             return;
@@ -94,7 +94,12 @@ app.post('/webhook', async (req, res) => {
             }
         } else if (event[0].type === 'TRANSFER') {
             if (event[0].tokenTransfers.length > 0 && event[0].tokenTransfers[0].mint != null) {
-                log(LOG_LEVELS.INFO, `${event[0].description}`, true, true, event[0].tokenTransfers[0].mint);
+                
+                if (event[0].nativeTransfers[0].amount >= 1000000) {
+                    log(LOG_LEVELS.INFO, `${event[0].description}`, true, true, event[0].tokenTransfers[0].mint);
+                } else {
+                    log(LOG_LEVELS.INFO, `${event[0].description}`, false, true, event[0].tokenTransfers[0].mint);
+                }
             } else {
                 log(LOG_LEVELS.INFO, `${event[0].description}`, true, true);
             }
@@ -115,29 +120,29 @@ app.post('/webhook', async (req, res) => {
         }
 
         // Detect transfer of NEW_TOKEN_ADDRESS from DISTRIB
-        // Detect transfer of NEW_TOKEN_ADDRESS from DISTRIB
         if (currentTokenState.NEW_TOKEN_ADDRESS && currentTokenState.SELLER_TRANSFERED &&
             event[0].type === 'TRANSFER') {
             // Loop through all tokenTransfers
-            for (let transfer of event[0].tokenTransfers) {
-                if (transfer.fromUserAccount === DISTRIB &&
-                    transfer.toUserAccount === SELLER &&
-                    transfer.mint === currentTokenState.NEW_TOKEN_ADDRESS) {
+            if (event[0].tokenTransfers.length > 0) {
+                for (let transfer of event[0].tokenTransfers) {
+                    if (transfer.fromUserAccount === DISTRIB &&
+                        transfer.toUserAccount === SELLER &&
+                        transfer.mint === currentTokenState.NEW_TOKEN_ADDRESS) {
 
-                    log(LOG_LEVELS.INFO, 'DISTRIB distributed to SELLER. Initiating buy.', true, true);
-                    await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 70, true, 10);
-                    currentTokenState.TOKEN_BOUGHT = true;
-                    break; // Exit the loop once we've found the transfer we're looking for
+                        log(LOG_LEVELS.INFO, 'DISTRIB distributed to SELLER. Initiating buy.', true, true);
+                        await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 70, true, 10);
+                        currentTokenState.TOKEN_BOUGHT = true;
+                        break; // Exit the loop once we've found the transfer we're looking for
+                    }
                 }
             }
         }
 
-        // Detect transfer of NEW_TOKEN_ADDRESS to SELLER
         // Detect transfer of current token to SELLER
         if (currentTokenState.NEW_TOKEN_ADDRESS && currentTokenState.TOKEN_BOUGHT && !currentTokenState.SOLD &&
             event[0].type === 'TRANSFER' &&
             event[0].tokenTransfers[0].toUserAccount === SELLER &&
-            event[0].tokenTransfers[0].mint === currentTokenState.address) {
+            event[0].tokenTransfers[0].mint === currentTokenState.NEW_TOKEN_ADDRESS) {
 
             currentTokenState.SELLER_RECEIVE_COUNT++;
             log(LOG_LEVELS.INFO, `SELLER received the new token. Count: ${currentTokenState.SELLER_RECEIVE_COUNT}`, true, true);
