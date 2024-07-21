@@ -20,14 +20,15 @@ let currentTokenState = {
     SELLER_TRANSFERED: false,
     TOKEN_BOUGHT: false,
     SELLER_RECEIVE_COUNT: 0,
-    SOLD: false
+    SOLD: false,
+    DISTRIBUTING: false
 };
 
 async function buyWaitAndSell(tokenAddress) {
     try {
         // Buy
         log(LOG_LEVELS.INFO, `Initiating buy for ${tokenAddress}`, true, true);
-        const buySuccess = await tradeTokenWithJupiter(tokenAddress, 60, true, 20);
+        const buySuccess = await tradeTokenWithJupiter(tokenAddress, 50, true, 20);
         if (!buySuccess) {
             log(LOG_LEVELS.ERROR, `Buy transaction failed for ${tokenAddress}`, true, true);
             return;
@@ -127,10 +128,12 @@ app.post('/webhook', async (req, res) => {
                 for (let transfer of event[0].tokenTransfers) {
                     if (transfer.fromUserAccount === DISTRIB &&
                         transfer.toUserAccount === SELLER &&
-                        transfer.mint === currentTokenState.NEW_TOKEN_ADDRESS) {
+                        transfer.mint === currentTokenState.NEW_TOKEN_ADDRESS &&
+                        !currentTokenState.DISTRIBUTING) {
 
                         log(LOG_LEVELS.INFO, 'DISTRIB distributed to SELLER. Initiating buy.', true, true);
-                        await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 70, true, 10);
+                        currentTokenState.DISTRIBUTING = true;
+                        await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 80, true, 10);
                         currentTokenState.TOKEN_BOUGHT = true;
                         break; // Exit the loop once we've found the transfer we're looking for
                     }
@@ -149,7 +152,7 @@ app.post('/webhook', async (req, res) => {
 
             if (currentTokenState.SELLER_RECEIVE_COUNT === 2) {
                 log(LOG_LEVELS.INFO, `SELLER received the new token twice. Initiating sell`, true, true);
-                const sellSuccess = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 100, false, 10);
+                const sellSuccess = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 100, false, 20);
                 if (sellSuccess) {
                     currentTokenState.SOLD = true;
                     // Reset the state for the next token
@@ -158,7 +161,8 @@ app.post('/webhook', async (req, res) => {
                         SELLER_TRANSFERED: false,
                         TOKEN_BOUGHT: false,
                         SELLER_RECEIVE_COUNT: 0,
-                        SOLD: false
+                        SOLD: false,
+                        DISTRIBUTING: false
                     };
                 }
             }
