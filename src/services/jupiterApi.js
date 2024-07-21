@@ -35,27 +35,24 @@ const wallet = new Wallet(Keypair.fromSecretKey(bs58.decode(privateKey)));
 let transactions = [];
 
 function recordTransaction(type, tokenAddress, amount, price) {
-    transactions.push({ type, tokenAddress, amount, price, timestamp: Date.now() });
+    const amountInSOL = type === 'buy' ? amount / LAMPORTS_PER_SOL : amount * price / LAMPORTS_PER_SOL;
+    transactions.push({ type, tokenAddress, amount: amountInSOL, price, timestamp: Date.now() });
 }
 
 function calculatePnL(tokenAddress) {
-    let buyTotal = 0;
-    let sellTotal = 0;
-    let buyAmount = 0;
-    let sellAmount = 0;
+    let buyTotalSOL = 0;
+    let sellTotalSOL = 0;
 
     transactions.filter(t => t.tokenAddress === tokenAddress).forEach(t => {
         if (t.type === 'buy') {
-            buyTotal += t.amount * t.price;
-            buyAmount += t.amount;
+            buyTotalSOL += t.amount / LAMPORTS_PER_SOL; // Convert lamports to SOL
         } else if (t.type === 'sell') {
-            sellTotal += t.amount * t.price;
-            sellAmount += t.amount;
+            sellTotalSOL += t.amount * t.price / LAMPORTS_PER_SOL; // Convert token amount to SOL
         }
     });
 
-    const pnl = sellTotal - buyTotal;
-    const pnlPercentage = ((sellTotal / buyTotal) - 1) * 100;
+    const pnl = sellTotalSOL - buyTotalSOL;
+    const pnlPercentage = ((sellTotalSOL / buyTotalSOL) - 1) * 100;
     log(LOG_LEVELS.INFO, `PnL for ${tokenAddress}: ${pnl.toFixed(4)} SOL (${pnlPercentage.toFixed(2)}%)`, true, true);
 }
 
@@ -146,9 +143,16 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
             });
             logTransaction(txInfo);
 
-            // Record the transaction for PnL tracking
-            const price = routes.outAmount / routes.inAmount;
-            recordTransaction(isBuy ? 'buy' : 'sell', tokenAddress, amount, price);
+            // For buy transactions
+            if (isBuy) {
+                recordTransaction('buy', tokenAddress, amount, 1); // price is 1 because amount is already in SOL
+            }
+
+            // For sell transactions
+            if (!isBuy) {
+                const price = routes.outAmount / routes.inAmount;
+                recordTransaction('sell', tokenAddress, amount, price);
+            }
 
             // Calculate PnL after selling
             if (!isBuy) {
