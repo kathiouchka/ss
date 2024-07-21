@@ -28,7 +28,7 @@ async function buyWaitAndSell(tokenAddress) {
     try {
         // Buy
         log(LOG_LEVELS.INFO, `Initiating buy for ${tokenAddress}`, true, true);
-        const buySuccess = await tradeTokenWithJupiter(tokenAddress, 50, true, 20);
+        const buySuccess = await tradeTokenWithJupiter(tokenAddress, 50, true, 25);
         if (!buySuccess) {
             log(LOG_LEVELS.ERROR, `Buy transaction failed for ${tokenAddress}`, true, true);
             return;
@@ -36,8 +36,8 @@ async function buyWaitAndSell(tokenAddress) {
         log(LOG_LEVELS.INFO, `Buy successful for ${tokenAddress}`, true, true);
 
         // Wait
-        log(LOG_LEVELS.INFO, `Waiting 20 seconds before selling ${tokenAddress}`, true, true);
-        await setTimeout(20000);
+        log(LOG_LEVELS.INFO, `Waiting 22 seconds before selling ${tokenAddress}`, true, true);
+        await setTimeout(22000);
 
         // Sell
         log(LOG_LEVELS.INFO, `Initiating sell for ${tokenAddress}`, true, true);
