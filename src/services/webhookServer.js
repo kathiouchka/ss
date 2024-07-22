@@ -103,6 +103,11 @@ app.post('/webhook', async (req, res) => {
             log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, true, true);
         }
 
+        for (let key in currentTokenState) {
+            if (currentTokenState.hasOwnProperty(key)) {
+                log('INFO', `${key}: ${currentTokenState[key]}`);
+            }
+        }
         // Detect transfer of NEW_TOKEN_ADDRESS from SELLER to DISTRIB
         if (currentTokenState.NEW_TOKEN_ADDRESS &&
             event[0].type === 'TRANSFER' &&
