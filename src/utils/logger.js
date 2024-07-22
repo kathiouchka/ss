@@ -34,16 +34,20 @@ function log(level, message, options = {}) {
         signature = ''
     } = options;
 
+    console.log(message)
     const transferRegex = /^(\w+) transferred a total ([\d.]+) SOL to multiple accounts\.$/;
     const match = message.match(transferRegex);
 
     if (match) {
+        console.log("cc")
+    console.log("AAAAAAAAA", options.sendToDiscord)
         const [, , amount] = match;
         const solAmount = parseFloat(amount);
         if (solAmount < 0.001) {
             options.sendToDiscord = false;
         }
     }
+    console.log("BBBBBBBBB", options.sendToDiscord)
 
     const timestamp = new Date().toISOString();
     const logMessage = `[${timestamp}] [${level}] ${message}`;
