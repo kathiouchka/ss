@@ -88,7 +88,8 @@ app.post('/webhook', async (req, res) => {
 
             log(LOG_LEVELS.INFO, `${event[0].description}`, {
                 inputMint: inputMint,
-                outputMint: outputMint
+                outputMint: outputMint,
+                signature: event[0].signature
             });
 
             // Check for new token detection (SOL amount between 149.5 and 150.5)
@@ -115,24 +116,31 @@ app.post('/webhook', async (req, res) => {
             event[0].tokenTransfers.length == 0) {
             if (event[0].nativeTransfers[0].amount >= 1000000) {
                 log(LOG_LEVELS.INFO, `${event[0].description}`, {
-                    inputMint: "So11111111111111111111111111111111111111112" 
+                    inputMint: "So11111111111111111111111111111111111111112",
+                    signature: event[0].signature
                 });
             } else {
                 log(LOG_LEVELS.INFO, `${event[0].description}`, {
                     sendToDiscord: false,
-                    inputMint: "So11111111111111111111111111111111111111112" 
+                    inputMint: "So11111111111111111111111111111111111111112", 
+                    signature: event[0].signature
                 });
             }
         } else if (event[0].type === 'TRANSFER') {
             if (event[0].tokenTransfers.length > 0 && event[0].tokenTransfers[0].mint != null) {
                 log(LOG_LEVELS.INFO, `${event[0].description}`, {
-                    inputMint: event[0].tokenTransfers[0].mint
+                    inputMint: event[0].tokenTransfers[0].mint,
+                    signature: event[0].signature
                 });
             } else {
-                log(LOG_LEVELS.INFO, `${event[0].description}`)
+                log(LOG_LEVELS.INFO, `${event[0].description}`, {
+                    signature: event[0].signature
+                });
             }
         } else {
-            log(LOG_LEVELS.INFO, `Description: ${event[0].description}`);
+            log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, {
+                    signature: event[0].signature
+            });
         }
 
         for (let key in currentTokenState) {
