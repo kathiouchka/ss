@@ -4,7 +4,7 @@ import bs58 from 'bs58';
 import dotenv from 'dotenv';
 import { Wallet } from '@project-serum/anchor';
 import { getAssociatedTokenAddress } from "@solana/spl-token";
-import { log, LOG_LEVELS, logTransaction, logDetailedInfo } from '../utils/logger.js';
+import { log, LOG_LEVELS, logTransaction } from '../utils/logger.js';
 
 dotenv.config();
 
@@ -32,30 +32,45 @@ function sleep(ms) {
 const wallet = new Wallet(Keypair.fromSecretKey(bs58.decode(privateKey)));
 
 // PnL tracking
-let transactions = [];
+let transactions = {};
 
 function recordTransaction(type, tokenAddress, amount, price) {
-    const amountInSOL = type === 'buy' ? amount / LAMPORTS_PER_SOL : amount * price / LAMPORTS_PER_SOL;
-    transactions.push({ type, tokenAddress, amount: amountInSOL, price, timestamp: Date.now() });
+    if (!transactions[tokenAddress]) {
+        transactions[tokenAddress] = [];
+    }
+    transactions[tokenAddress].push({ type, amount, price, timestamp: Date.now() });
 }
 
 function calculatePnL(tokenAddress) {
-    let buyTotalSOL = 0;
-    let sellTotalSOL = 0;
+    if (!transactions[tokenAddress] || transactions[tokenAddress].length === 0) {
+        log(LOG_LEVELS.INFO, `No transactions found for ${tokenAddress}`, { isBot: true });
+        return;
+    }
 
-    transactions.filter(t => t.tokenAddress === tokenAddress).forEach(t => {
+    let totalBuySOL = 0;
+    let totalSellSOL = 0;
+    let totalBuyTokens = 0;
+    let totalSellTokens = 0;
+
+    transactions[tokenAddress].forEach(t => {
         if (t.type === 'buy') {
-            buyTotalSOL += t.amount / LAMPORTS_PER_SOL; // Convert lamports to SOL
+            totalBuySOL += t.amount;
+            totalBuyTokens += t.amount / t.price;
         } else if (t.type === 'sell') {
-            sellTotalSOL += t.amount * t.price / LAMPORTS_PER_SOL; // Convert token amount to SOL
+            totalSellSOL += t.amount * t.price;
+            totalSellTokens += t.amount;
         }
     });
 
-    const pnl = sellTotalSOL - buyTotalSOL;
-    const pnlPercentage = ((sellTotalSOL / buyTotalSOL) - 1) * 100;
-    log(LOG_LEVELS.INFO, `PnL for ${tokenAddress}: ${pnl.toFixed(4)} SOL (${pnlPercentage.toFixed(2)}%)`, {
-        isBot: true,
-    });
+    const pnlSOL = totalSellSOL - totalBuySOL;
+    const pnlPercentage = ((totalSellSOL / totalBuySOL) - 1) * 100;
+
+    const pnlMessage = `PnL for ${tokenAddress}:\n` +
+        `Total bought: ${totalBuyTokens.toFixed(6)} tokens for ${totalBuySOL.toFixed(6)} SOL\n` +
+        `Total sold: ${totalSellTokens.toFixed(6)} tokens for ${totalSellSOL.toFixed(6)} SOL\n` +
+        `PnL: ${pnlSOL.toFixed(6)} SOL (${pnlPercentage.toFixed(2)}%)`;
+    const color = pnlSOL > 0 ? 'GREEN' : pnlSOL < 0 ? 'RED' : 'CYAN';
+    log(LOG_LEVELS.INFO, pnlMessage, { isBot: true, color: color });
 }
 
 async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, slippage = 10) {
