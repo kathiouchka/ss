@@ -16,7 +16,9 @@ const requiredEnvVars = [
 function checkEnvVariables() {
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
   if (missingVars.length > 0) {
-    log(LOG_LEVELS.ERROR, `Missing required environment variables: ${missingVars.join(', ')}`);
+    log(LOG_LEVELS.ERROR, `Missing required environment variables: ${missingVars.join(', ')}`, {
+      isBot: true
+    });
     process.exit(1);
   }
 }
@@ -25,29 +27,40 @@ async function main() {
   try {
     checkEnvVariables();
     await startWebhookServer();
-    log(LOG_LEVELS.INFO, 'Webhook server started successfully');
+    log(LOG_LEVELS.INFO, 'BOT RESTARTED', {
+      isBot: true,
+    });
   } catch (error) {
-    log(LOG_LEVELS.ERROR, `Error starting webhook server: ${error.message}`);
+    log(LOG_LEVELS.ERROR, `Error starting webhook server: ${error.message}`, {
+      isBot: true
+    });
   }
 }
 
 function handleGlobalErrors(error) {
-  log(LOG_LEVELS.ERROR, `Unhandled error: ${error.message}`);
-  log(LOG_LEVELS.ERROR, `Stack trace: ${error.stack}`);
+  log(LOG_LEVELS.ERROR, `Unhandled error: ${error.message}`, {
+    isBot: true,
+  });
+  log(LOG_LEVELS.ERROR, `Stack trace: ${error.stack}`, {
+    isBot: true,
+  });
   
   // Optionally, you can add more specific error handling here
   if (error.message.includes("503 Service Unavailable")) {
-    log(LOG_LEVELS.WARN, "RPC service is currently unavailable. The program will continue running, but some operations may fail.");
+    log(LOG_LEVELS.WARN, "RPC service is currently unavailable. The program will continue running, but some operations may fail.", {
+      isBot: true,
+    });
   }
   
   // Instead of crashing, we'll keep the program running
   setTimeout(() => {
-    log(LOG_LEVELS.INFO, "Attempting to recover from error...");
+    log(LOG_LEVELS.INFO, "Attempting to recover from error...", {
+      isBot: true,
+    });
     main().catch(handleGlobalErrors);
   }, 10000); // Wait 10 seconds before attempting to recover
 }
 
-log(LOG_LEVELS.INFO, 'About to call main function');
 main().catch(handleGlobalErrors);
 
 // Add these global error handlers
