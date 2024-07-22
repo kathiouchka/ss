@@ -89,7 +89,8 @@ app.post('/webhook', async (req, res) => {
             log(LOG_LEVELS.INFO, `${event[0].description}`, {
                 inputMint: inputMint,
                 outputMint: outputMint,
-                signature: event[0].signature
+                signature: event[0].signature,
+                color: isBuy ? 'GREEN' : 'RED'  // Color SWAP transactions GREEN for buys, RED for sells
             });
 
             // Check for new token detection (SOL amount between 149.5 and 150.5)
@@ -117,7 +118,8 @@ app.post('/webhook', async (req, res) => {
             if (event[0].nativeTransfers[0].amount >= 1000000) {
                 log(LOG_LEVELS.INFO, `${event[0].description}`, {
                     inputMint: "So11111111111111111111111111111111111111112",
-                    signature: event[0].signature
+                    signature: event[0].signature,
+                    color: 'PURPLE'
                 });
             } else {
                 log(LOG_LEVELS.INFO, `${event[0].description}`, {
@@ -130,16 +132,19 @@ app.post('/webhook', async (req, res) => {
             if (event[0].tokenTransfers.length > 0 && event[0].tokenTransfers[0].mint != null) {
                 log(LOG_LEVELS.INFO, `${event[0].description}`, {
                     inputMint: event[0].tokenTransfers[0].mint,
-                    signature: event[0].signature
+                    signature: event[0].signature,
+                    color: 'PURPLE'
                 });
             } else {
                 log(LOG_LEVELS.INFO, `${event[0].description}`, {
-                    signature: event[0].signature
+                    signature: event[0].signature,
+                    color: 'PURPLE'
                 });
             }
         } else {
             log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, {
-                    signature: event[0].signature
+                    signature: event[0].signature,
+                    color: 'CYAN'
             });
         }
 

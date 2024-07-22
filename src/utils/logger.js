@@ -57,12 +57,28 @@ function log(level, message, options = {}) {
             .setTimestamp();
 
         const SOL_MINT = 'So11111111111111111111111111111111111111112';
-        let embedColor = '#00FFFF'; // Default Cyan for other info
+        let embedColor; // Default Cyan for other info
 
-        if (inputMint === SOL_MINT) {
-            embedColor = '#00FF00'; // Green
-        } else if (outputMint === SOL_MINT) {
-            embedColor = '#FF0000'; // Red
+        if (options.color) {
+            // Use the color provided in the options
+            switch (options.color.toUpperCase()) {
+                case 'GREEN':
+                    embedColor = '#00FF00';
+                    break;
+                case 'RED':
+                    embedColor = '#FF0000';
+                    break;
+                case 'PURPLE':
+                    embedColor = '#800080';
+                    break;
+                case 'CYAN':
+                    embedColor = '#00FFFF';
+                    break;
+                default:
+                    embedColor = '#FFFFFF'; // Default to white if an unknown color is provided
+            }
+        } else {
+            embedColor = '#A9A9A9'; // Cyan for other info
         }
 
         embed.setColor(embedColor);
@@ -110,7 +126,7 @@ function log(level, message, options = {}) {
         embed.setDescription(processedMessage);
 
         if (signature) {
-            embed.addFields({ name: 'Signature', value: `[View on Solscan](https://solscan.io/tx/${signature})` });
+            embed.addFields({ name: '\u200B', value: `[View on Solscan](https://solscan.io/tx/${signature})` });
         }
 
         if (isBot) {
