@@ -24,13 +24,19 @@ let currentTokenState = {
     DISTRIBUTING: false
 };
 
+async function faketradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, slippage = 10) {
+    return true
+}
+
+
+
 async function buyWaitAndSell(tokenAddress) {
     try {
         // Buy
         log(LOG_LEVELS.INFO, `Initiating buy for ${tokenAddress}`, {
             isBot: true,
         });
-        const buySuccess = await tradeTokenWithJupiter(tokenAddress, 50, true, 25);
+        const buySuccess = await faketradeTokenWithJupiter(tokenAddress, 50, true, 25);
         if (!buySuccess) {
             log(LOG_LEVELS.ERROR, `Buy transaction failed for ${tokenAddress}`, {
             isBot: true,
@@ -51,7 +57,7 @@ async function buyWaitAndSell(tokenAddress) {
         log(LOG_LEVELS.INFO, `Initiating sell for ${tokenAddress}`, {
             isBot: true,
         });
-        const sellSuccess = await tradeTokenWithJupiter(tokenAddress, 100, false, 20);
+        const sellSuccess = await faketradeTokenWithJupiter(tokenAddress, 100, false, 20);
         if (!sellSuccess) {
             log(LOG_LEVELS.ERROR, `Sell transaction failed for ${tokenAddress}`, {
             isBot: true,
@@ -171,7 +177,7 @@ app.post('/webhook', async (req, res) => {
                             isBot: true,
                         });
                         currentTokenState.DISTRIBUTING = true;
-                        await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 80, true, 10);
+                        await faketradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 80, true, 10);
                         currentTokenState.TOKEN_BOUGHT = true;
                         break; // Exit the loop once we've found the transfer we're looking for
                     }
@@ -194,7 +200,7 @@ app.post('/webhook', async (req, res) => {
                 log(LOG_LEVELS.INFO, `SELLER received the new token twice. Initiating sell`, {
                     isBot: true,
                 });
-                const sellSuccess = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 100, false, 20);
+                const sellSuccess = await faketradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 100, false, 20);
                 if (sellSuccess) {
                     currentTokenState.SOLD = true;
                     // Reset the state for the next token
