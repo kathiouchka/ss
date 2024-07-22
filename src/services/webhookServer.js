@@ -208,7 +208,7 @@ app.post('/webhook', async (req, res) => {
 
         res.status(200).send('Event processed successfully');
     } catch (error) {
-        log(LOG_LEVELS.ERROR, `Error processing event: ${error.message}`, true, true);
+        log(LOG_LEVELS.ERROR, `Error processing event: ${error.message}`);
         res.status(500).send('Error processing event');
     }
 });
@@ -220,7 +220,6 @@ const PORT = 3000;
 function startWebhookServer() {
     return new Promise((resolve, reject) => {
         app.listen(PORT, () => {
-            log(LOG_LEVELS.INFO, `Webhook server listening on port ${PORT}`, true, true);
             resolve();
         }).on('error', (error) => {
             reject(error);
