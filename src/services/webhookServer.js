@@ -77,7 +77,9 @@ app.post('/webhook', async (req, res) => {
     const event = req.body;
 
     try {
-        log(LOG_LEVELS.INFO, `Received webhook event: ${JSON.stringify(event)}`);
+        log(LOG_LEVELS.INFO, `Received webhook event: ${JSON.stringify(event)}`, {
+            sendToDiscord: false,
+        });
         if (event[0].type === 'SWAP') {
             const swapEvent = event[0].events.swap;
             const isBuy = swapEvent.nativeInput !== null;
@@ -135,7 +137,9 @@ app.post('/webhook', async (req, res) => {
 
         for (let key in currentTokenState) {
             if (currentTokenState.hasOwnProperty(key)) {
-                log(LOG_LEVELS.INFO, `${key}: ${currentTokenState[key]}`);
+                log(LOG_LEVELS.INFO, `${key}: ${currentTokenState[key]}`, {
+                    sendToDiscord: false,
+                });
             }
         }
         // Detect transfer of NEW_TOKEN_ADDRESS from SELLER to DISTRIB
