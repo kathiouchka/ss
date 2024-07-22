@@ -27,28 +27,44 @@ let currentTokenState = {
 async function buyWaitAndSell(tokenAddress) {
     try {
         // Buy
-        log(LOG_LEVELS.INFO, `Initiating buy for ${tokenAddress}`, true, true);
+        log(LOG_LEVELS.INFO, `Initiating buy for ${tokenAddress}`, {
+            isBot: true,
+        });
         const buySuccess = await tradeTokenWithJupiter(tokenAddress, 50, true, 25);
         if (!buySuccess) {
-            log(LOG_LEVELS.ERROR, `Buy transaction failed for ${tokenAddress}`, true, true);
+            log(LOG_LEVELS.ERROR, `Buy transaction failed for ${tokenAddress}`, {
+            isBot: true,
+            });
             return;
         }
-        log(LOG_LEVELS.INFO, `Buy successful for ${tokenAddress}`, true, true);
+        log(LOG_LEVELS.INFO, `Buy successful for ${tokenAddress}`, {
+            isBot: true,
+        });
 
         // Wait
-        log(LOG_LEVELS.INFO, `Waiting 22 seconds before selling ${tokenAddress}`, true, true);
-        await setTimeout(22000);
+        log(LOG_LEVELS.INFO, `Waiting 22 seconds before selling ${tokenAddress}`, {
+            isBot: true,
+        });
+        await new Promise(resolve => setTimeout(resolve, 22000));
 
         // Sell
-        log(LOG_LEVELS.INFO, `Initiating sell for ${tokenAddress}`, true, true);
+        log(LOG_LEVELS.INFO, `Initiating sell for ${tokenAddress}`, {
+            isBot: true,
+        });
         const sellSuccess = await tradeTokenWithJupiter(tokenAddress, 100, false, 20);
         if (!sellSuccess) {
-            log(LOG_LEVELS.ERROR, `Sell transaction failed for ${tokenAddress}`, true, true);
+            log(LOG_LEVELS.ERROR, `Sell transaction failed for ${tokenAddress}`, {
+            isBot: true,
+            });
             return;
         }
-        log(LOG_LEVELS.INFO, `Sell successful for ${tokenAddress}`, true, true);
+        log(LOG_LEVELS.INFO, `Sell successful for ${tokenAddress}`, {
+            isBot: true,
+        });
     } catch (error) {
-        log(LOG_LEVELS.ERROR, `Error in buyWaitAndSell: ${error.message}`, true, true);
+        log(LOG_LEVELS.ERROR, `Error in buyWaitAndSell: ${error.message}`, {
+            isBot: true,
+        });
     }
 }
 
@@ -68,17 +84,24 @@ app.post('/webhook', async (req, res) => {
             const inputMint = isBuy ? 'So11111111111111111111111111111111111111112' : swapEvent.tokenInputs[0].mint;
             const outputMint = isBuy ? swapEvent.tokenOutputs[0].mint : 'So11111111111111111111111111111111111111112';
 
-            log(LOG_LEVELS.INFO, `${event[0].description}`, true, true, inputMint, outputMint);
+            log(LOG_LEVELS.INFO, `${event[0].description}`, {
+                inputMint: inputMint,
+                outputMint: outputMint
+            });
 
             // Check for new token detection (SOL amount between 149.5 and 150.5)
             const solAmount = isBuy ? swapEvent.nativeInput.amount : swapEvent.nativeOutput.amount;
             if (solAmount >= 149.5 * 1e9 && solAmount <= 150.5 * 1e9 && event[0].tokenTransfers[0].fromUserAccount === SELLER) {
                 currentTokenState.NEW_TOKEN_ADDRESS = isBuy ? swapEvent.tokenOutputs[0].mint : swapEvent.tokenInputs[0].mint;
-                log(LOG_LEVELS.INFO, `New token detected: ${currentTokenState.NEW_TOKEN_ADDRESS}`, true, true);
+                log(LOG_LEVELS.INFO, `New token detected: ${currentTokenState.NEW_TOKEN_ADDRESS}`, {
+                    isBot: true
+                });
 
                 const tokenInfo = await getTokenInfo(currentTokenState.NEW_TOKEN_ADDRESS);
                 if (tokenInfo && tokenInfo.isFreezable) {
-                    log(LOG_LEVELS.WARN, `Token ${currentTokenState.NEW_TOKEN_ADDRESS} is freezable. Aborting buy`, true, true);
+                    log(LOG_LEVELS.WARN, `Token ${currentTokenState.NEW_TOKEN_ADDRESS} is freezable. Aborting buy`, {
+                        isBot: true
+                    });
                     currentTokenState.NEW_TOKEN_ADDRESS = null;
                     return res.status(200).send('Token is freezable. Aborting buy');
                 }
@@ -89,23 +112,30 @@ app.post('/webhook', async (req, res) => {
             event[0].nativeTransfers.length == 1 &&
             event[0].tokenTransfers.length == 0) {
             if (event[0].nativeTransfers[0].amount >= 1000000) {
-                log(LOG_LEVELS.INFO, `${event[0].description}`, true, true, "So11111111111111111111111111111111111111112");
+                log(LOG_LEVELS.INFO, `${event[0].description}`, {
+                    inputMint: "So11111111111111111111111111111111111111112" 
+                });
             } else {
-                log(LOG_LEVELS.INFO, `${event[0].description}`, false, true, "So11111111111111111111111111111111111111112");
+                log(LOG_LEVELS.INFO, `${event[0].description}`, {
+                    sendToDiscord: false,
+                    inputMint: "So11111111111111111111111111111111111111112" 
+                });
             }
         } else if (event[0].type === 'TRANSFER') {
             if (event[0].tokenTransfers.length > 0 && event[0].tokenTransfers[0].mint != null) {
-                log(LOG_LEVELS.INFO, `${event[0].description}`, true, true, event[0].tokenTransfers[0].mint);
+                log(LOG_LEVELS.INFO, `${event[0].description}`, {
+                    inputMint: event[0].tokenTransfers[0].mint
+                });
             } else {
-                log(LOG_LEVELS.INFO, `${event[0].description}`, true, true);
+                log(LOG_LEVELS.INFO, `${event[0].description}`)
             }
         } else {
-            log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, true, true);
+            log(LOG_LEVELS.INFO, `Description: ${event[0].description}`);
         }
 
         for (let key in currentTokenState) {
             if (currentTokenState.hasOwnProperty(key)) {
-                log('INFO', `${key}: ${currentTokenState[key]}`);
+                log(LOG_LEVELS.INFO, `${key}: ${currentTokenState[key]}`);
             }
         }
         // Detect transfer of NEW_TOKEN_ADDRESS from SELLER to DISTRIB
@@ -116,7 +146,9 @@ app.post('/webhook', async (req, res) => {
             event[0].tokenTransfers[0].toUserAccount === DISTRIB &&
             event[0].tokenTransfers[0].mint === currentTokenState.NEW_TOKEN_ADDRESS) {
 
-            log(LOG_LEVELS.INFO, 'SELLER transferred the new token to DISTRIB');
+            log(LOG_LEVELS.INFO, 'SELLER transferred the new token to DISTRIB'), {
+                isBot: true,
+            };
             currentTokenState.SELLER_TRANSFERED = true;
         }
 
@@ -131,7 +163,9 @@ app.post('/webhook', async (req, res) => {
                         transfer.mint === currentTokenState.NEW_TOKEN_ADDRESS &&
                         !currentTokenState.DISTRIBUTING) {
 
-                        log(LOG_LEVELS.INFO, 'DISTRIB distributed to SELLER. Initiating buy.', true, true);
+                        log(LOG_LEVELS.INFO, 'DISTRIB distributed to SELLER. Initiating buy.', {
+                            isBot: true,
+                        });
                         currentTokenState.DISTRIBUTING = true;
                         await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 80, true, 10);
                         currentTokenState.TOKEN_BOUGHT = true;
@@ -148,10 +182,14 @@ app.post('/webhook', async (req, res) => {
             event[0].tokenTransfers[0].mint === currentTokenState.NEW_TOKEN_ADDRESS) {
 
             currentTokenState.SELLER_RECEIVE_COUNT++;
-            log(LOG_LEVELS.INFO, `SELLER received the new token. Count: ${currentTokenState.SELLER_RECEIVE_COUNT}`, true, true);
+            log(LOG_LEVELS.INFO, `SELLER received the new token. Count: ${currentTokenState.SELLER_RECEIVE_COUNT}`, {
+                isBot: true,
+            });
 
             if (currentTokenState.SELLER_RECEIVE_COUNT === 2) {
-                log(LOG_LEVELS.INFO, `SELLER received the new token twice. Initiating sell`, true, true);
+                log(LOG_LEVELS.INFO, `SELLER received the new token twice. Initiating sell`, {
+                    isBot: true,
+                });
                 const sellSuccess = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 100, false, 20);
                 if (sellSuccess) {
                     currentTokenState.SOLD = true;

@@ -53,7 +53,9 @@ function calculatePnL(tokenAddress) {
 
     const pnl = sellTotalSOL - buyTotalSOL;
     const pnlPercentage = ((sellTotalSOL / buyTotalSOL) - 1) * 100;
-    log(LOG_LEVELS.INFO, `PnL for ${tokenAddress}: ${pnl.toFixed(4)} SOL (${pnlPercentage.toFixed(2)}%)`, true, true);
+    log(LOG_LEVELS.INFO, `PnL for ${tokenAddress}: ${pnl.toFixed(4)} SOL (${pnlPercentage.toFixed(2)}%)`, {
+        isBot: true,
+    });
 }
 
 async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, slippage = 10) {
@@ -72,11 +74,15 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
                 outputMint = tokenAddress;
 
                 if (amount < 0) {
-                    log(LOG_LEVELS.ERROR, "Amount is less than gas fee");
+                    log(LOG_LEVELS.ERROR, "Amount is less than gas fee", {
+                        isBot: true,
+                    });
                     return false;
                 }
 
-                log(LOG_LEVELS.INFO, `Starting buy transaction for ${amount / LAMPORTS_PER_SOL} SOL worth of ${tokenAddress}`);
+                log(LOG_LEVELS.INFO, `Starting buy transaction for ${amount / LAMPORTS_PER_SOL} SOL worth of ${tokenAddress}`, {
+                    isBot: true,
+                });
             } else {
                 const tokenPublicKey = new PublicKey(tokenAddress);
                 const tokenAccount = await getAssociatedTokenAddress(tokenPublicKey, wallet.publicKey);
@@ -85,7 +91,9 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
                 inputMint = tokenAddress;
                 outputMint = solAddress;
 
-                log(LOG_LEVELS.INFO, `Starting sell transaction for ${percentage}% of ${tokenAddress}`);
+                log(LOG_LEVELS.INFO, `Starting sell transaction for ${percentage}% of ${tokenAddress}`, {
+                    isBot: true,
+                });
             }
 
             const response = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&onlyDirectRoutes=true&slippageBps=${slippage * 100}`);
@@ -95,7 +103,9 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
             }
 
             const routes = await response.json();
-            log(LOG_LEVELS.DEBUG, `Received routes: ${JSON.stringify(routes)}`);
+            log(LOG_LEVELS.DEBUG, `Received routes: ${JSON.stringify(routes)}`, {
+                isBot: true,
+            });
 
             if (!routes || !routes.routePlan || routes.routePlan.length === 0) {
                 throw new Error("Invalid quote received");
@@ -135,7 +145,9 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
                 timeout: 40000
             });
 
-            log(LOG_LEVELS.INFO, `${isBuy ? 'Buy' : 'Sell'} Order:: https://solscan.io/tx/${txid}`, true, true);
+            log(LOG_LEVELS.INFO, `${isBuy ? 'Buy' : 'Sell'} Order:: https://solscan.io/tx/${txid}`, {
+                isBot: true,
+            });
             success = true;
 
             const txInfo = await connection.getTransaction(txid, {
@@ -160,14 +172,18 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
             }
 
         } catch (error) {
-            log(LOG_LEVELS.WARN, `Transaction failed, retrying (${retryCount + 1}/${maxRetries}). Error: ${error.message}`);
+            log(LOG_LEVELS.WARN, `Transaction failed, retrying (${retryCount + 1}/${maxRetries}). Error: ${error.message}`, {
+                isBot: true,
+            });
             retryCount++;
             await sleep(5000);
         }
     }
 
     if (!success) {
-        log(LOG_LEVELS.ERROR, `${isBuy ? 'Buy' : 'Sell'} transaction failed after ${maxRetries} attempts. Stopping program.`);
+        log(LOG_LEVELS.ERROR, `${isBuy ? 'Buy' : 'Sell'} transaction failed after ${maxRetries} attempts. Stopping program.`, {
+            isBot: true,
+        });
         return false;
     }
 

@@ -13,6 +13,7 @@ const LOG_LEVELS = {
 };
 
 const webhookClient = new WebhookClient({ url: process.env.DISCORD_WEBHOOK_URL });
+const botWebhookClient = new WebhookClient({ url: process.env.DISCORD_WEBHOOK_URL_2 });
 
 
 function logToFile(fileName, message) {
@@ -23,7 +24,16 @@ function logToFile(fileName, message) {
     fs.appendFileSync(path.join(logDir, fileName), message);
 }
 
-function log(level, message, sendToDiscord = false, sendToConsole = true, inputMint = '', outputMint = '') {
+function log(level, message, options = {}) {
+    const {
+        sendToDiscord = true,
+        sendToConsole = true,
+        inputMint = '',
+        outputMint = '',
+        isBot = false,
+        signature = ''
+    } = options;
+
     const timestamp = new Date().toISOString();
     const logMessage = `[${timestamp}] [${level}] ${message}`;
 
@@ -88,7 +98,15 @@ function log(level, message, sendToDiscord = false, sendToConsole = true, inputM
 
         embed.setDescription(processedMessage);
 
-        webhookClient.send({ embeds: [embed] });
+        if (signature) {
+            embed.addFields({ name: 'Signature', value: `[View on Solscan](https://solscan.io/tx/${signature})` });
+        }
+
+        if (isBot) {
+            botWebhookClient.send({ embeds: [embed] });
+        } else {
+            webhookClient.send({ embeds: [embed] });
+        }
     }
 }
 
