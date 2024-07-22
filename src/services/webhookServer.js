@@ -109,7 +109,7 @@ app.post('/webhook', async (req, res) => {
                     currentTokenState.NEW_TOKEN_ADDRESS = null;
                     return res.status(200).send('Token is freezable. Aborting buy');
                 }
-                buyWaitAndSell(currentTokenState.NEW_TOKEN_ADDRESS);
+                // buyWaitAndSell(currentTokenState.NEW_TOKEN_ADDRESS);
             }
         } else if (event[0].type === 'TRANSFER' &&
             event[0].nativeTransfers &&
