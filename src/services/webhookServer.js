@@ -95,7 +95,7 @@ app.post('/webhook', async (req, res) => {
 
             // Check for new token detection (SOL amount between 149.5 and 150.5)
             const solAmount = isBuy ? swapEvent.nativeInput.amount : swapEvent.nativeOutput.amount;
-            if (solAmount >= 149.5 * 1e9 && solAmount <= 150.5 * 1e9 && event[0].tokenTransfers[0].fromUserAccount === SELLER) {
+            if (solAmount >= 149.5 * 1e9 && event[0].tokenTransfers[0].fromUserAccount === SELLER) {
                 currentTokenState.NEW_TOKEN_ADDRESS = isBuy ? swapEvent.tokenOutputs[0].mint : swapEvent.tokenInputs[0].mint;
                 log(LOG_LEVELS.INFO, `New token detected: ${currentTokenState.NEW_TOKEN_ADDRESS}`, {
                     isBot: true
