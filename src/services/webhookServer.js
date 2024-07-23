@@ -197,13 +197,17 @@ app.post('/webhook', async (req, res) => {
         // Detect transfer of current token to SELLER
         if (currentTokenState.NEW_TOKEN_ADDRESS && currentTokenState.TOKEN_BOUGHT && !currentTokenState.SOLD &&
             event[0].type === 'TRANSFER' &&
+            event[0].tokenTransfers.length > 0 &&
             event[0].tokenTransfers[0].toUserAccount === SELLER &&
             event[0].tokenTransfers[0].mint === currentTokenState.NEW_TOKEN_ADDRESS) {
 
             currentTokenState.SELLER_RECEIVE_COUNT++;
-            log(LOG_LEVELS.INFO, `SELLER received the new token. Count: ${currentTokenState.SELLER_RECEIVE_COUNT}`, {
-                isBot: true,
-            });
+            
+            if (currentTokenState.SELLER_RECEIVE_COUNT <= 2) {
+                log(LOG_LEVELS.INFO, `SELLER received the new token. Count: ${currentTokenState.SELLER_RECEIVE_COUNT}`, {
+                    isBot: true,
+                });
+            }
 
             if (currentTokenState.SELLER_RECEIVE_COUNT === 2) {
                 log(LOG_LEVELS.INFO, `SELLER received the new token twice. Initiating sell`, {

@@ -117,7 +117,7 @@ function log(level, message, options = {}) {
                     mint = nonSolMint;
                 }
 
-                return `${amount}[${tokenName}](https://dexscreener.com/solana/${mint})`;
+                return `${amount}[${tokenName}](https://birdeye.so/token/${mint})`;
             });
         };
         let processedMessage = replaceWalletAddresses(message);
