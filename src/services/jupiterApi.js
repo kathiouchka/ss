@@ -34,11 +34,11 @@ const wallet = new Wallet(Keypair.fromSecretKey(bs58.decode(privateKey)));
 // PnL tracking
 let transactions = {};
 
-function recordTransaction(type, tokenAddress, amount, price) {
+function recordTransaction(type, tokenAddress, amount) {
     if (!transactions[tokenAddress]) {
         transactions[tokenAddress] = [];
     }
-    transactions[tokenAddress].push({ type, amount, price, timestamp: Date.now() });
+    transactions[tokenAddress].push({ type, amount, timestamp: Date.now() });
 }
 
 function calculatePnL(tokenAddress) {
@@ -55,9 +55,9 @@ function calculatePnL(tokenAddress) {
     transactions[tokenAddress].forEach(t => {
         if (t.type === 'buy') {
             totalBuySOL += t.amount;
-            totalBuyTokens += t.amount / t.price;
+            totalBuyTokens += t.amount;
         } else if (t.type === 'sell') {
-            totalSellSOL += t.amount * t.price;
+            totalSellSOL += t.amount;
             totalSellTokens += t.amount;
         }
     });
@@ -66,9 +66,9 @@ function calculatePnL(tokenAddress) {
     const pnlPercentage = ((totalSellSOL / totalBuySOL) - 1) * 100;
 
     const pnlMessage = `PnL for ${tokenAddress}:\n` +
-        `Total bought: ${totalBuyTokens.toFixed(6)} tokens for ${totalBuySOL.toFixed(6)} SOL\n` +
-        `Total sold: ${totalSellTokens.toFixed(6)} tokens for ${totalSellSOL.toFixed(6)} SOL\n` +
-        `PnL: ${pnlSOL.toFixed(6)} SOL (${pnlPercentage.toFixed(2)}%)`;
+        `Total bought: ${totalBuyTokens} tokens for ${totalBuySOL} SOL\n` +
+        `Total sold: ${totalSellTokens} tokens for ${totalSellSOL} SOL\n` +
+        `PnL: ${pnlSOL} SOL (${pnlPercentage.toFixed(2)}%)`;
     const color = pnlSOL > 0 ? 'GREEN' : pnlSOL < 0 ? 'RED' : 'CYAN';
     log(LOG_LEVELS.INFO, pnlMessage, { isBot: true, color: color });
 }
@@ -118,7 +118,8 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
             }
 
             const routes = await response.json();
-            log(LOG_LEVELS.DEBUG, `Received routes: ${JSON.stringify(routes)}`, {
+            log(LOG_LEVELS.DEBUG, `Received routes: ${JSON.stringify(routes)}, {}`, {
+                sendToDiscord: false,
                 isBot: true,
             });
 
@@ -172,13 +173,12 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
 
             // For buy transactions
             if (isBuy) {
-                recordTransaction('buy', tokenAddress, amount, 1); // price is 1 because amount is already in SOL
+                recordTransaction('buy', tokenAddress, amount / LAMPORTS_PER_SOL);
             }
 
             // For sell transactions
             if (!isBuy) {
-                const price = routes.outAmount / routes.inAmount;
-                recordTransaction('sell', tokenAddress, amount, price);
+                recordTransaction('sell', tokenAddress, amount / LAMPORTS_PER_SOL);
             }
 
             // Calculate PnL after selling
