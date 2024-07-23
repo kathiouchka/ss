@@ -111,7 +111,7 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
                 });
             }
 
-            const response = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&onlyDirectRoutes=true&slippageBps=${slippage * 100}`);
+            const response = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippage * 100}`);
 
             if (!response.ok) {
                 throw new Error(`HTTP quote error! status: ${response.statusText}`);
