@@ -194,7 +194,7 @@ app.post('/webhook', async (req, res) => {
                             isBot: true,
                         });
                         currentTokenState.DISTRIBUTING = true;
-                        const buySuccess = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 80, true, 10);
+                        const buySuccess = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 90, true, 10);
                         if (buySuccess) {
                             currentTokenState.TOKEN_BOUGHT = true;
                         }
