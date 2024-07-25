@@ -101,8 +101,6 @@ async function transferSol(amount, recipientAddress, connection, wallet) {
     }
 }
 
-module.exports = { transferSol };
-
 async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, slippage = 10) {
     const maxRetries = 3;
     let retryCount = 0;
