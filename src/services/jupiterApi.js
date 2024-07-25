@@ -73,6 +73,36 @@ function calculatePnL(tokenAddress) {
     log(LOG_LEVELS.INFO, pnlMessage, { isBot: true, color: color });
 }
 
+async function transferSol(amount, recipientAddress, connection, wallet) {
+    try {
+        const provider = new anchor.AnchorProvider(connection, wallet, {
+            preflightCommitment: "confirmed",
+        });
+
+        const transaction = new Transaction().add(
+            SystemProgram.transfer({
+                fromPubkey: wallet.publicKey,
+                toPubkey: new PublicKey(recipientAddress),
+                lamports: amount * anchor.web3.LAMPORTS_PER_SOL,
+            })
+        );
+
+        const signature = await provider.sendAndConfirm(transaction);
+
+        log(LOG_LEVELS.INFO, `Transfer of ${amount} SOL to ${recipientAddress} successful.`, {
+            isBot: true,
+            signature: signature,
+        });
+        return signature;
+    } catch (error) {
+        log(LOG_LEVELS.error, `Error transferring SOL: ${error.message}`, {
+            isBot: true,
+        });
+    }
+}
+
+module.exports = { transferSol };
+
 async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, slippage = 10) {
     const maxRetries = 3;
     let retryCount = 0;
@@ -206,4 +236,4 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
     return success;
 }
 
-export { tradeTokenWithJupiter };
+export { tradeTokenWithJupiter, transferSol };
