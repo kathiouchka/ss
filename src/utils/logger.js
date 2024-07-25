@@ -14,6 +14,7 @@ const LOG_LEVELS = {
 
 const webhookClient = new WebhookClient({ url: process.env.DISCORD_WEBHOOK_URL });
 const botWebhookClient = new WebhookClient({ url: process.env.DISCORD_WEBHOOK_URL_2 });
+const thirdWebhookClient = new WebhookClient({ url: process.env.DISCORD_WEBHOOK_URL_3 });
 
 
 function logToFile(fileName, message) {
@@ -41,6 +42,7 @@ function log(level, message, options = {}) {
         inputMint = '',
         outputMint = '',
         isBot = false,
+        isThird = false,
         signature = ''
     } = options;
 
@@ -131,7 +133,9 @@ function log(level, message, options = {}) {
 
         if (isBot) {
             botWebhookClient.send({ embeds: [embed] });
-        } else {
+        } else if (isThird) {
+            thirdWebhookClient.send({ embeds: [embed] })
+        }   else {
             webhookClient.send({ embeds: [embed] });
         }
     }
