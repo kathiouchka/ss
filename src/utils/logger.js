@@ -134,8 +134,12 @@ function log(level, message, options = {}) {
         if (isBot) {
             botWebhookClient.send({ embeds: [embed] });
         } else if (isThird) {
+            const tokenAddress = message;
+            const birdeyeLink = `https://birdeye.so/token/${tokenAddress}`;
+            const dexscreenerLink = `https://dexscreener.com/solana/${tokenAddress}`;
+            embed.setDescription(`New token detected: [${tokenAddress}](${birdeyeLink}) | [Dexscreener](${dexscreenerLink})`);
             thirdWebhookClient.send({ embeds: [embed] })
-        }   else {
+        } else {
             webhookClient.send({ embeds: [embed] });
         }
     }
