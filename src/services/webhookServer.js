@@ -113,6 +113,7 @@ app.post('/webhook', async (req, res) => {
                     return res.status(200).send('Token is freezable. Aborting buy');
                 }
                 currentTokenState = {
+                    NEW_TOKEN_ADDRESS: currentTokenState.NEW_TOKEN_ADDRESS,
                     SELLER_TRANSFERED: false,
                     TOKEN_BOUGHT: false,
                     SELLER_RECEIVE_COUNT: 0,
