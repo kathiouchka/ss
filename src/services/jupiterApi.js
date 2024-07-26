@@ -73,31 +73,36 @@ function calculatePnL(tokenAddress) {
     log(LOG_LEVELS.INFO, pnlMessage, { isBot: true, color: color });
 }
 
-async function transferSol(amount, recipientAddress, connection, wallet) {
+async function checkBalanceAndTransferSurplus() {
     try {
-        const provider = new anchor.AnchorProvider(connection, wallet, {
-            preflightCommitment: "confirmed",
-        });
+        const balance = await connection.getBalance(wallet.publicKey);
+        const balanceInSOL = balance / LAMPORTS_PER_SOL;
 
-        const transaction = new Transaction().add(
-            SystemProgram.transfer({
-                fromPubkey: wallet.publicKey,
-                toPubkey: new PublicKey(recipientAddress),
-                lamports: amount * anchor.web3.LAMPORTS_PER_SOL,
-            })
-        );
+        if (balanceInSOL > 0.20) {
+            const surplusSOL = balanceInSOL - 0.20;
+            const surplusLamports = Math.floor(surplusSOL * LAMPORTS_PER_SOL);
 
-        const signature = await provider.sendAndConfirm(transaction);
+            const transaction = new Transaction().add(
+                SystemProgram.transfer({
+                    fromPubkey: wallet.publicKey,
+                    toPubkey: new PublicKey(process.env.PROFIT_WALLET),
+                    lamports: surplusLamports,
+                })
+            );
 
-        log(LOG_LEVELS.INFO, `Transfer of ${amount} SOL to ${recipientAddress} successful.`, {
-            isBot: true,
-            signature: signature,
-        });
-        return signature;
+            const signature = await sendAndConfirmRawTransaction(connection, rawTransaction, {
+                skipPreflight: true,
+                maxRetries: 5,
+                commitment: 'processed',
+                timeout: 40000
+            });
+
+            log(LOG_LEVELS.INFO, `Transferred ${surplusSOL.toFixed(6)} SOL to PROFIT_WALLET. Tx: https://solscan.io/tx/${signature}`, { isBot: true });
+        } else {
+            log(LOG_LEVELS.INFO, `Current wallet balance: ${balanceInSOL.toFixed(6)} SOL. No surplus to transfer.`, { isBot: true });
+        }
     } catch (error) {
-        log(LOG_LEVELS.error, `Error transferring SOL: ${error.message}`, {
-            isBot: true,
-        });
+        log(LOG_LEVELS.ERROR, `Failed to check balance or transfer surplus: ${error.message}`, { isBot: true });
     }
 }
 
@@ -234,4 +239,4 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
     return success;
 }
 
-export { tradeTokenWithJupiter, transferSol };
+export { tradeTokenWithJupiter, checkBalanceAndTransferSurplus };

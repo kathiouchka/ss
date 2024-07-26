@@ -2,7 +2,7 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import { log, LOG_LEVELS } from '../utils/logger.js';
 import { getTokenInfo } from '../utils/tokenInfo.js';
-import { tradeTokenWithJupiter } from './jupiterApi.js';
+import { tradeTokenWithJupiter, checkBalanceAndTransferSurplus } from './jupiterApi.js';
 import dotenv from 'dotenv';
 import { setTimeout } from 'timers/promises';
 
@@ -119,6 +119,9 @@ app.post('/webhook', async (req, res) => {
                     SOLD: false,
                     DISTRIBUTING: false
                 };
+                log(LOG_LEVELS.INFO, `currentTokenState.NEW_TOKEN_ADDRESS = ${currentTokenState.NEW_TOKEN_ADDRESS}`, {
+                    isBot: true
+                });
                 // buyWaitAndSell(currentTokenState.NEW_TOKEN_ADDRESS);
             }
         } else if (event[0].type === 'TRANSFER' &&
