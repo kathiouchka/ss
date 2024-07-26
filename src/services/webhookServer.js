@@ -24,55 +24,6 @@ let currentTokenState = {
     DISTRIBUTING: false
 };
 
-async function buyWaitAndSell(tokenAddress) {
-    try {
-        // Buy
-        log(LOG_LEVELS.INFO, `Initiating buy for ${tokenAddress}`, {
-            isBot: true,
-        });
-        const buySuccess = await tradeTokenWithJupiter(tokenAddress, 50, true, 25);
-        if (!buySuccess) {
-            log(LOG_LEVELS.ERROR, `Buy transaction failed for ${tokenAddress}`, {
-            isBot: true,
-            });
-            return;
-        }
-        log(LOG_LEVELS.INFO, `Buy successful for ${tokenAddress}`, {
-            isBot: true,
-        });
-
-        // Wait
-        log(LOG_LEVELS.INFO, `Waiting 22 seconds before selling ${tokenAddress}`, {
-            isBot: true,
-        });
-        await new Promise(resolve => setTimeout(resolve, 22000));
-
-        // Sell
-        log(LOG_LEVELS.INFO, `Initiating sell for ${tokenAddress}`, {
-            isBot: true,
-        });
-        const sellSuccess = await tradeTokenWithJupiter(tokenAddress, 100, false, 20);
-        if (!sellSuccess) {
-            log(LOG_LEVELS.ERROR, `Sell transaction failed for ${tokenAddress}`, {
-            isBot: true,
-            });
-            return;
-        }
-        log(LOG_LEVELS.INFO, `Sell successful for ${tokenAddress}`, {
-            isBot: true,
-        });
-    } catch (error) {
-        log(LOG_LEVELS.ERROR, `Error in buyWaitAndSell: ${error.message}`, {
-            isBot: true,
-        });
-    }
-}
-
-
-app.get('/health', (req, res) => {
-    res.status(200).send('OK');
-});
-
 app.post('/webhook', async (req, res) => {
     const event = req.body;
 
@@ -120,10 +71,6 @@ app.post('/webhook', async (req, res) => {
                     SOLD: false,
                     DISTRIBUTING: false
                 };
-                log(LOG_LEVELS.INFO, `currentTokenState.NEW_TOKEN_ADDRESS = ${currentTokenState.NEW_TOKEN_ADDRESS}`, {
-                    isBot: true
-                });
-                // buyWaitAndSell(currentTokenState.NEW_TOKEN_ADDRESS);
             }
         } else if (event[0].type === 'TRANSFER' &&
             event[0].nativeTransfers &&
