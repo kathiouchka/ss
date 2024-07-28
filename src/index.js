@@ -1,6 +1,6 @@
 import { startWebhookServer } from './services/webhookServer.js';
 import { log, LOG_LEVELS } from './utils/logger.js';
-import { checkBalanceAndTransferSurplus } from './jupiterApi.js';
+import { checkBalanceAndTransferSurplus } from './services/jupiterApi.js';
 
 import dotenv from 'dotenv';
 
