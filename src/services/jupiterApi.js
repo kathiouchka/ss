@@ -70,7 +70,7 @@ async function checkBalanceAndTransferSurplus() {
         const balanceInSOL = balance / LAMPORTS_PER_SOL;
 
         if (balanceInSOL > 0.20) {
-            const surplusSOL = balanceInSOL - 0.20;
+            const surplusSOL = balanceInSOL - 0.26;
             const surplusLamports = Math.floor(surplusSOL * LAMPORTS_PER_SOL);
 
             const transaction = new Transaction().add(
