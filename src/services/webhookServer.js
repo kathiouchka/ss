@@ -2,9 +2,9 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import { log, LOG_LEVELS } from '../utils/logger.js';
 import { getTokenInfo } from '../utils/tokenInfo.js';
-import { tradeTokenWithJupiter, checkBalanceAndTransferSurplus } from './jupiterApi.js';
+import { tradeTokenWithJupiter, checkBalanceAndTransferSurplus, calculatePnL } from './jupiterApi.js';
 import dotenv from 'dotenv';
-import { setTimeout } from 'timers/promises';
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 dotenv.config();
 
@@ -23,6 +23,15 @@ let currentTokenState = {
     SOLD: false,
     DISTRIBUTING: false
 };
+
+let transactions = {};
+
+function recordTransaction(type, tokenAddress, amount) {
+    if (!transactions[tokenAddress]) {
+        transactions[tokenAddress] = [];
+    }
+    transactions[tokenAddress].push({ type, amount, timestamp: Date.now() });
+}
 
 app.post('/webhook', async (req, res) => {
     const event = req.body;
@@ -46,13 +55,28 @@ app.post('/webhook', async (req, res) => {
 
             // Check for new token detection (SOL amount between 149.5 and 150.5)
             const solAmount = isBuy ? swapEvent.nativeInput.amount : swapEvent.nativeOutput.amount;
+            if (event[0].tokenTransfers[0].fromUserAccount === process.env.BOT_WALLET) {
+                // Record the transaction for PnL calculation
+                const amount = isBuy ? swapEvent.nativeInput.amount : swapEvent.nativeOutput.amount;
+                const type = isBuy ? 'buy' : 'sell';
+                recordTransaction(type, currentTokenState.NEW_TOKEN_ADDRESS, amount / LAMPORTS_PER_SOL);
+                if (isBuy) {
+                    currentTokenState.TOKEN_BOUGHT = true;
+                    log(LOG_LEVELS.INFO, `Bot wallet bought the token. TOKEN_BOUGHT set to true.`, {
+                        isBot: true
+                    });
+                } else {
+                    calculatePnL(currentTokenState.NEW_TOKEN_ADDRESS);
+                    checkBalanceAndTransferSurplus()
+                }
+            }
             if (solAmount >= 149.5 * 1e9 && solAmount <= 150.5 * 1e9 && event[0].tokenTransfers[0].fromUserAccount === SELLER) {
                 currentTokenState.NEW_TOKEN_ADDRESS = isBuy ? swapEvent.tokenOutputs[0].mint : swapEvent.tokenInputs[0].mint;
                 log(LOG_LEVELS.INFO, `Reset of the variables : new token detected: ${currentTokenState.NEW_TOKEN_ADDRESS}`, {
                     isBot: true
                 });
                 log(LOG_LEVELS.INFO, `${currentTokenState.NEW_TOKEN_ADDRESS}`, {
-                    isThird: true, 
+                    isThird: true,
                 });
 
                 const tokenInfo = await getTokenInfo(currentTokenState.NEW_TOKEN_ADDRESS);
@@ -85,7 +109,7 @@ app.post('/webhook', async (req, res) => {
             } else {
                 log(LOG_LEVELS.INFO, `${event[0].description}`, {
                     sendToDiscord: false,
-                    inputMint: "So11111111111111111111111111111111111111112", 
+                    inputMint: "So11111111111111111111111111111111111111112",
                     signature: event[0].signature
                 });
             }
@@ -104,8 +128,8 @@ app.post('/webhook', async (req, res) => {
             }
         } else {
             log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, {
-                    signature: event[0].signature,
-                    color: 'CYAN'
+                signature: event[0].signature,
+                color: 'CYAN'
             });
         }
 
@@ -163,7 +187,7 @@ app.post('/webhook', async (req, res) => {
             event[0].tokenTransfers[0].mint === currentTokenState.NEW_TOKEN_ADDRESS) {
 
             currentTokenState.SELLER_RECEIVE_COUNT++;
-            
+
             if (currentTokenState.SELLER_RECEIVE_COUNT <= 2) {
                 log(LOG_LEVELS.INFO, `SELLER received the new token. Count: ${currentTokenState.SELLER_RECEIVE_COUNT}`, {
                     isBot: true,

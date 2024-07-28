@@ -1,5 +1,5 @@
 import fetch from "node-fetch";
-import { Connection, Keypair, VersionedTransaction, PublicKey, sendAndConfirmRawTransaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { Connection, Keypair, VersionedTransaction, PublicKey, sendAndConfirmRawTransaction, LAMPORTS_PER_SOL, Transaction } from '@solana/web3.js';
 import bs58 from 'bs58';
 import dotenv from 'dotenv';
 import { Wallet } from '@project-serum/anchor';
@@ -32,15 +32,6 @@ function sleep(ms) {
 const wallet = new Wallet(Keypair.fromSecretKey(bs58.decode(privateKey)));
 
 // PnL tracking
-let transactions = {};
-
-function recordTransaction(type, tokenAddress, amount) {
-    if (!transactions[tokenAddress]) {
-        transactions[tokenAddress] = [];
-    }
-    transactions[tokenAddress].push({ type, amount, timestamp: Date.now() });
-}
-
 function calculatePnL(tokenAddress) {
     if (!transactions[tokenAddress] || transactions[tokenAddress].length === 0) {
         log(LOG_LEVELS.INFO, `No transactions found for ${tokenAddress}`, { isBot: true });
@@ -90,6 +81,7 @@ async function checkBalanceAndTransferSurplus() {
                 })
             );
 
+            const rawTransaction = transaction.serialize(); // Serialize the transaction
             const signature = await sendAndConfirmRawTransaction(connection, rawTransaction, {
                 skipPreflight: true,
                 maxRetries: 5,
@@ -107,7 +99,7 @@ async function checkBalanceAndTransferSurplus() {
 }
 
 async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, slippage = 10) {
-    const maxRetries = 3;
+    const maxRetries = 4;
     let retryCount = 0;
     let success = false;
 
@@ -204,21 +196,6 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
             });
             logTransaction(txInfo);
 
-            // For buy transactions
-            if (isBuy) {
-                recordTransaction('buy', tokenAddress, amount / LAMPORTS_PER_SOL);
-            }
-
-            // For sell transactions
-            if (!isBuy) {
-                recordTransaction('sell', tokenAddress, amount / LAMPORTS_PER_SOL);
-            }
-
-            // Calculate PnL after selling
-            if (!isBuy) {
-                calculatePnL(tokenAddress);
-            }
-
         } catch (error) {
             log(LOG_LEVELS.WARN, `Transaction failed, retrying (${retryCount + 1}/${maxRetries}). Error: ${error.message}`, {
                 isBot: true,
@@ -239,4 +216,4 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
     return success;
 }
 
-export { tradeTokenWithJupiter, checkBalanceAndTransferSurplus };
+export { tradeTokenWithJupiter, checkBalanceAndTransferSurplus, calculatePnL };
