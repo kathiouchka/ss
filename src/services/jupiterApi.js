@@ -70,8 +70,11 @@ async function checkBalanceAndTransferSurplus() {
         const balanceInSOL = balance / LAMPORTS_PER_SOL;
 
         if (balanceInSOL > 0.20) {
-            const surplusSOL = balanceInSOL - 0.26;
+            const surplusSOL = balanceInSOL - 0.30;
             const surplusLamports = Math.floor(surplusSOL * LAMPORTS_PER_SOL);
+
+            // Get a recent blockhash
+            const { blockhash } = await connection.getLatestBlockhash();
 
             const transaction = new Transaction().add(
                 SystemProgram.transfer({
@@ -81,8 +84,15 @@ async function checkBalanceAndTransferSurplus() {
                 })
             );
 
-            const rawTransaction = transaction.serialize(); // Serialize the transaction
-            const signature = await sendAndConfirmRawTransaction(connection, rawTransaction, {
+            // Set the recent blockhash and the fee payer
+            transaction.recentBlockhash = blockhash;
+            transaction.feePayer = wallet.publicKey;
+
+            // Sign the transaction
+            const signedTransaction = await wallet.signTransaction(transaction);
+
+            // Send and confirm the transaction
+            const signature = await sendAndConfirmRawTransaction(connection, signedTransaction.serialize(), {
                 skipPreflight: true,
                 maxRetries: 5,
                 commitment: 'processed',
