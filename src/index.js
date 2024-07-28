@@ -31,11 +31,11 @@ function checkEnvVariables() {
 async function main() {
   try {
     checkEnvVariables();
+    checkBalanceAndTransferSurplus()
     await startWebhookServer();
     log(LOG_LEVELS.INFO, 'BOT RESTARTED', {
       isBot: true,
     });
-    checkBalanceAndTransferSurplus()
   } catch (error) {
     log(LOG_LEVELS.ERROR, `Error starting webhook server: ${error.message}`, {
       isBot: true
