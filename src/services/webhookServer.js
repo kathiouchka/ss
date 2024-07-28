@@ -67,7 +67,7 @@ app.post('/webhook', async (req, res) => {
                     });
                 } else {
                     calculatePnL(currentTokenState.NEW_TOKEN_ADDRESS);
-                    checkBalanceAndTransferSurplus()
+                    await checkBalanceAndTransferSurplus();
                 }
             }
             if (solAmount >= 149.5 * 1e9 && solAmount <= 150.5 * 1e9 && event[0].tokenTransfers[0].fromUserAccount === SELLER) {

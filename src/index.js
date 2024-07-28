@@ -31,7 +31,7 @@ function checkEnvVariables() {
 async function main() {
   try {
     checkEnvVariables();
-    checkBalanceAndTransferSurplus()
+    await checkBalanceAndTransferSurplus();
     await startWebhookServer();
     log(LOG_LEVELS.INFO, 'BOT RESTARTED', {
       isBot: true,
