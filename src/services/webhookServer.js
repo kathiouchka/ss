@@ -164,15 +164,25 @@ app.post('/webhook', async (req, res) => {
                         transfer.toUserAccount === SELLER &&
                         transfer.mint === currentTokenState.NEW_TOKEN_ADDRESS &&
                         !currentTokenState.DISTRIBUTING) {
-
-                        log(LOG_LEVELS.INFO, 'DISTRIB distributed to SELLER. Initiating buy.', {
+        
+                        log(LOG_LEVELS.INFO, 'DISTRIB distributed to SELLER. Waiting before initiating buy.', {
                             isBot: true,
                         });
                         currentTokenState.DISTRIBUTING = true;
-                        const buySuccess = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 90, true, 10);
-                        if (buySuccess) {
-                            currentTokenState.TOKEN_BOUGHT = true;
-                        }
+        
+                        // Generate a random delay between 160 and 190 seconds
+                        const delay = Math.floor(Math.random() * (190 - 160 + 1) + 160) * 1000;
+        
+                        setTimeout(async () => {
+                            log(LOG_LEVELS.INFO, `Waited ${delay / 1000} seconds. Initiating buy.`, {
+                                isBot: true,
+                            });
+                            const buySuccess = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 90, true, 10);
+                            if (buySuccess) {
+                                currentTokenState.TOKEN_BOUGHT = true;
+                            }
+                        }, delay);
+        
                         break; // Exit the loop once we've found the transfer we're looking for
                     }
                 }

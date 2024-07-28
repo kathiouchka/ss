@@ -70,7 +70,7 @@ async function checkBalanceAndTransferSurplus() {
         const balanceInSOL = balance / LAMPORTS_PER_SOL;
 
         if (balanceInSOL > 0.20) {
-            const surplusSOL = balanceInSOL - 0.30;
+            const surplusSOL = balanceInSOL - 0.22;
             const surplusLamports = Math.floor(surplusSOL * LAMPORTS_PER_SOL);
 
             // Get a recent blockhash
@@ -108,7 +108,7 @@ async function checkBalanceAndTransferSurplus() {
     }
 }
 
-async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, slippage = 10) {
+async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, slippage = 15) {
     const maxRetries = 4;
     let retryCount = 0;
     let success = false;
@@ -211,7 +211,7 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
                 isBot: true,
             });
             retryCount++;
-            await sleep(5000);
+            await sleep(3000);
         }
     }
 
