@@ -1,6 +1,5 @@
 import { startWebhookServer } from './services/webhookServer.js';
 import { log, LOG_LEVELS } from './utils/logger.js';
-import { checkBalanceAndTransferSurplus } from './services/jupiterApi.js';
 
 import dotenv from 'dotenv';
 
@@ -31,7 +30,6 @@ function checkEnvVariables() {
 async function main() {
   try {
     checkEnvVariables();
-    await checkBalanceAndTransferSurplus();
     await startWebhookServer();
     log(LOG_LEVELS.INFO, 'BOT RESTARTED', {
       isBot: true,
