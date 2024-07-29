@@ -2,7 +2,7 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import { log, LOG_LEVELS } from '../utils/logger.js';
 import { getTokenInfo } from '../utils/tokenInfo.js';
-import { tradeTokenWithJupiter, checkBalanceAndTransferSurplus, calculatePnL } from './jupiterApi.js';
+import { tradeTokenWithJupiter, checkBalanceAndTransferSurplus } from './jupiterApi.js';
 import dotenv from 'dotenv';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 
@@ -25,6 +25,38 @@ let currentTokenState = {
 };
 
 let transactions = {};
+
+function calculatePnL(tokenAddress) {
+    if (!transactions[tokenAddress] || transactions[tokenAddress].length === 0) {
+        log(LOG_LEVELS.INFO, `No transactions found for ${tokenAddress}`, { isBot: true });
+        return;
+    }
+
+    let totalBuySOL = 0;
+    let totalSellSOL = 0;
+    let totalBuyTokens = 0;
+    let totalSellTokens = 0;
+
+    transactions[tokenAddress].forEach(t => {
+        if (t.type === 'buy') {
+            totalBuySOL += t.amount;
+            totalBuyTokens += t.amount;
+        } else if (t.type === 'sell') {
+            totalSellSOL += t.amount;
+            totalSellTokens += t.amount;
+        }
+    });
+
+    const pnlSOL = totalSellSOL - totalBuySOL;
+    const pnlPercentage = ((totalSellSOL / totalBuySOL) - 1) * 100;
+
+    const pnlMessage = `PnL for ${tokenAddress}:\n` +
+        `Total bought: ${totalBuyTokens} tokens for ${totalBuySOL} SOL\n` +
+        `Total sold: ${totalSellTokens} tokens for ${totalSellSOL} SOL\n` +
+        `PnL: ${pnlSOL} SOL (${pnlPercentage.toFixed(2)}%)`;
+    const color = pnlSOL > 0 ? 'GREEN' : pnlSOL < 0 ? 'RED' : 'CYAN';
+    log(LOG_LEVELS.INFO, pnlMessage, { isBot: true, color: color });
+}
 
 function recordTransaction(type, tokenAddress, amount) {
     if (!transactions[tokenAddress]) {
