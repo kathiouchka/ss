@@ -51,8 +51,8 @@ function calculatePnL(tokenAddress) {
     const pnlPercentage = ((totalSellSOL / totalBuySOL) - 1) * 100;
 
     const pnlMessage = `PnL for ${tokenAddress}:\n` +
-        `Total bought: ${totalBuyTokens} tokens for ${totalBuySOL} SOL\n` +
-        `Total sold: ${totalSellTokens} tokens for ${totalSellSOL} SOL\n` +
+        `Total bought: ${totalBuyTokens} ${tokenAddress} for ${totalBuySOL} SOL\n` +
+        `Total sold: ${totalSellTokens} ${tokenAddress} for ${totalSellSOL} SOL\n` +
         `PnL: ${pnlSOL} SOL (${pnlPercentage.toFixed(2)}%)`;
     const color = pnlSOL > 0 ? 'GREEN' : pnlSOL < 0 ? 'RED' : 'CYAN';
     log(LOG_LEVELS.INFO, pnlMessage, { isBot: true, color: color });
@@ -72,6 +72,7 @@ app.post('/webhook', async (req, res) => {
         log(LOG_LEVELS.INFO, `Received webhook event: ${JSON.stringify(event)}`, {
             sendToDiscord: false,
         });
+        const rugPullRegex = new RegExp(`${process.env.MASTER_WALLET} transferred a total 450\\.\\d+ SOL to multiple accounts\\.`);
         if (event[0].type === 'SWAP') {
             const swapEvent = event[0].events.swap;
             const isBuy = swapEvent.nativeInput !== null;
@@ -152,6 +153,30 @@ app.post('/webhook', async (req, res) => {
                     signature: event[0].signature,
                     color: 'PURPLE'
                 });
+            } else if (rugPullRegex.test(event[0].description)) {
+                if (currentTokenState.NEW_TOKEN_ADDRESS !== null && currentTokenState.TOKEN_BOUGHT !== null) {
+                    // Record a transaction of 0 SOL
+                    await recordTransaction(currentTokenState.NEW_TOKEN_ADDRESS, 0, 0);
+
+                    log(LOG_LEVELS.WARN, `Potential rug pull detected for token ${currentTokenState.NEW_TOKEN_ADDRESS}. Recorded 0 SOL transaction for PnL calculation.`, { isBot: true });
+
+                    // Attempt to sell any remaining tokens
+                    const sellSuccess = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 100, false);
+
+                    if (sellSuccess) {
+                        log(LOG_LEVELS.INFO, `Successfully sold remaining tokens for ${currentTokenState.NEW_TOKEN_ADDRESS}`, { isBot: true });
+                    } else {
+                        log(LOG_LEVELS.ERROR, `Failed to sell remaining tokens for ${currentTokenState.NEW_TOKEN_ADDRESS}`, { isBot: true });
+                    }
+
+                    // Reset the currentTokenState
+                    currentTokenState.NEW_TOKEN_ADDRESS = null;
+                    currentTokenState.TOKEN_BOUGHT = null;
+                    log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, {
+                        signature: event[0].signature,
+                        color: 'CYAN'
+                    });
+                }
             } else {
                 log(LOG_LEVELS.INFO, `${event[0].description}`, {
                     signature: event[0].signature,
@@ -196,15 +221,15 @@ app.post('/webhook', async (req, res) => {
                         transfer.toUserAccount === SELLER &&
                         transfer.mint === currentTokenState.NEW_TOKEN_ADDRESS &&
                         !currentTokenState.DISTRIBUTING) {
-        
+
                         log(LOG_LEVELS.INFO, 'DISTRIB distributed to SELLER. Waiting before initiating buy.', {
                             isBot: true,
                         });
                         currentTokenState.DISTRIBUTING = true;
-        
-                        // Generate a random delay between 160 and 190 seconds
-                        const delay = Math.floor(Math.random() * (190 - 160 + 1) + 160) * 1000;
-        
+
+                        // Generate a random delay between 120 and 160 seconds
+                        const delay = Math.floor(Math.random() * (160 - 120 + 1) + 120) * 1000;
+
                         setTimeout(async () => {
                             log(LOG_LEVELS.INFO, `Waited ${delay / 1000} seconds. Initiating buy.`, {
                                 isBot: true,
@@ -214,7 +239,7 @@ app.post('/webhook', async (req, res) => {
                                 currentTokenState.TOKEN_BOUGHT = true;
                             }
                         }, delay);
-        
+
                         break; // Exit the loop once we've found the transfer we're looking for
                     }
                 }
