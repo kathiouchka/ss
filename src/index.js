@@ -14,7 +14,8 @@ const requiredEnvVars = [
   'DISCORD_WEBHOOK_URL_2',
   'DISCORD_WEBHOOK_URL_3',
   'BOT_WALLET',
-  'PROFIT_WALLET'
+  'PROFIT_WALLET',
+  'MASTER_WALLET',
 ];
 
 function checkEnvVariables() {
