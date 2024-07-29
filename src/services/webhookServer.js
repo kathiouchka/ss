@@ -172,11 +172,12 @@ app.post('/webhook', async (req, res) => {
                     // Reset the currentTokenState
                     currentTokenState.NEW_TOKEN_ADDRESS = null;
                     currentTokenState.TOKEN_BOUGHT = null;
-                    log(LOG_LEVELS.INFO, `Description: ${event[0].description}`, {
-                        signature: event[0].signature,
-                        color: 'CYAN'
-                    });
+
                 }
+                log(LOG_LEVELS.INFO, `${event[0].description}`, {
+                    signature: event[0].signature,
+                    color: 'PURPLE'
+                });
             } else {
                 log(LOG_LEVELS.INFO, `${event[0].description}`, {
                     signature: event[0].signature,
