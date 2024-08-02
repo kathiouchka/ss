@@ -51,8 +51,8 @@ function calculatePnL(tokenAddress) {
     const pnlPercentage = Number(((totalSellSOL / totalBuySOL - 1) * 100).toFixed(2));
 
     const pnlMessage = `PnL for ${tokenAddress}:\n` +
-        `Total bought: ${totalBuyTokens.toFixed(2)} ${tokenAddress} for ${totalBuySOL.toFixed(4)} SOL\n` +
-        `Total sold: ${totalSellTokens.toFixed(2)} ${tokenAddress} for ${totalSellSOL.toFixed(4)} SOL\n` +
+        `Total bought: ${totalBuyTokens} ${tokenAddress} for ${totalBuySOL.toFixed(4)} SOL\n` +
+        `Total sold: ${totalSellTokens} ${tokenAddress} for ${totalSellSOL.toFixed(4)} SOL\n` +
         `PnL: ${pnlSOL.toFixed(4)} SOL (${pnlPercentage.toFixed(2)}%)`;
     const color = pnlSOL > 0 ? 'GREEN' : pnlSOL < 0 ? 'RED' : 'CYAN';
     log(LOG_LEVELS.INFO, pnlMessage, { isBot: true, color: color });
@@ -94,6 +94,9 @@ app.post('/webhook', async (req, res) => {
                 const mint = isBuy ? swapEvent.tokenOutputs[0].mint : swapEvent.tokenInputs[0].mint;
                 const type = isBuy ? 'buy' : 'sell';
                 const tokenAmount = isBuy ? swapEvent.tokenOutputs[0].amount : swapEvent.tokenInputs[0].amount;
+                    log(LOG_LEVELS.INFO, `TOKEN AMOUNT = ${tokenAmount}`, {
+                        isBot: true
+                    });
                 recordTransaction(type, mint, tokenAmount, amount / LAMPORTS_PER_SOL);
                 
                 if (isBuy) {
