@@ -42,11 +42,11 @@ async function main() {
       isBot: true,
     });
     await tradeTokenWithJupiter("4DBgRWs63QzBwj71Qxiiz49DUZJi2QgUha7cbadepump", 20, true, 5);
-    log(LOG_LEVELS.INFO, "WE WAIT 60 SECONDS", {
+    log(LOG_LEVELS.INFO, "WE WAIT 30 SECONDS", {
       isBot: true,
     });
 
-    await delay(60000);
+    await delay(30000);
     await tradeTokenWithJupiter("4DBgRWs63QzBwj71Qxiiz49DUZJi2QgUha7cbadepump", 100, false, 5);
     log(LOG_LEVELS.INFO, "WE SOLD FAKE TEST", {
       isBot: true,
