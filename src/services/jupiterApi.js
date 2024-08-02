@@ -134,30 +134,6 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
         log(LOG_LEVELS.INFO, 'Sending bundle...', { isBot: true });
         const bundleUuid = await searcherClient.sendBundle(maybeBundle);
         log(LOG_LEVELS.INFO, 'Bundle sent successfully', { bundleUuid, isBot: true });
-        log(LOG_LEVELS.INFO, 'Waiting for bundle result...', { isBot: true });
-
-        await Promise.race([
-            new Promise((resolve, reject) => {
-                searcherClient.onBundleResult(
-                    (result) => {
-                        if (result.accepted) {
-                            log(LOG_LEVELS.INFO, 'Bundle accepted!', { isBot: true });
-                            resolve();
-                        } else {
-                            log(LOG_LEVELS.ERROR, 'Bundle not accepted', { isBot: true });
-                            reject(new Error('Bundle not accepted'));
-                        }
-                    },
-                    (error) => {
-                        log(LOG_LEVELS.ERROR, 'Error in bundle result', { error, isBot: true });
-                        reject(error);
-                    }
-                );
-            }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Bundle result timeout')), 30000))
-        ]);
-        log(LOG_LEVELS.INFO, 'Bundle result received', { isBot: true });
-
         log(LOG_LEVELS.INFO, `${isBuy ? 'Buy' : 'Sell'} order completed successfully`, { isBot: true });
         return true;
     } catch (error) {
