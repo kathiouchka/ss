@@ -1,5 +1,6 @@
 import { startWebhookServer } from './services/webhookServer.js';
 import { log, LOG_LEVELS } from './utils/logger.js';
+import { tradeTokenWithJupiter } from './services/jupiterApi.js'
 
 import dotenv from 'dotenv';
 
@@ -28,10 +29,28 @@ function checkEnvVariables() {
   }
 }
 
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
 async function main() {
   try {
     checkEnvVariables();
     await startWebhookServer();
+    log(LOG_LEVELS.INFO, "THIS IS A TEST BUY", {
+      isBot: true,
+    });
+    await tradeTokenWithJupiter("", 20, true, 5);
+    log(LOG_LEVELS.INFO, "WE WAIT 60 SECONDS", {
+      isBot: true,
+    });
+
+    await delay(60000);
+    await tradeTokenWithJupiter("", 100, false, 5);
+    log(LOG_LEVELS.INFO, "WE SOLD FAKE TEST", {
+      isBot: true,
+    });
     log(LOG_LEVELS.INFO, 'BOT RESTARTED', {
       isBot: true,
     });

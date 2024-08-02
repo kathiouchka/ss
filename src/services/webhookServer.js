@@ -235,10 +235,8 @@ app.post('/webhook', async (req, res) => {
                             log(LOG_LEVELS.INFO, `Waited ${delay / 1000} seconds. Initiating buy.`, {
                                 isBot: true,
                             });
-                            const buySuccess = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 90, true, 10);
-                            if (buySuccess) {
-                                currentTokenState.TOKEN_BOUGHT = true;
-                            }
+                            await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 90, true, 10);
+                            currentTokenState.TOKEN_BOUGHT = true;
                         }, delay);
 
                         break; // Exit the loop once we've found the transfer we're looking for
@@ -266,19 +264,19 @@ app.post('/webhook', async (req, res) => {
                 log(LOG_LEVELS.INFO, `SELLER received the new token twice. Initiating sell`, {
                     isBot: true,
                 });
-                const sellSuccess = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 100, false, 20);
-                if (sellSuccess) {
-                    currentTokenState.SOLD = true;
-                    // Reset the state for the next token
-                    currentTokenState = {
-                        NEW_TOKEN_ADDRESS: null,
-                        SELLER_TRANSFERED: false,
-                        TOKEN_BOUGHT: false,
-                        SELLER_RECEIVE_COUNT: 0,
-                        SOLD: false,
-                        DISTRIBUTING: false
-                    };
-                }
+                await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 100, false, 20);
+
+                currentTokenState.SOLD = true;
+                // Reset the state for the next token
+                currentTokenState = {
+                    NEW_TOKEN_ADDRESS: null,
+                    SELLER_TRANSFERED: false,
+                    TOKEN_BOUGHT: false,
+                    SELLER_RECEIVE_COUNT: 0,
+                    SOLD: false,
+                    DISTRIBUTING: false
+                };
+
             }
         }
 
