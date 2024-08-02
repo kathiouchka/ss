@@ -93,7 +93,8 @@ app.post('/webhook', async (req, res) => {
                 const amount = isBuy ? swapEvent.nativeInput.amount : swapEvent.nativeOutput.amount;
                 const mint = isBuy ? swapEvent.tokenOutputs[0].mint : swapEvent.tokenInputs[0].mint;
                 const type = isBuy ? 'buy' : 'sell';
-                const tokenAmount = isBuy ? swapEvent.tokenOutputs[0].amount : swapEvent.tokenInputs[0].amount;
+                const tokenInfo = isBuy ? swapEvent.tokenOutputs[0].rawTokenAmount : swapEvent.tokenInputs[0].rawTokenAmount;
+                const tokenAmount = parseFloat(tokenInfo.tokenAmount) / Math.pow(10, tokenInfo.decimals);
                     log(LOG_LEVELS.INFO, `TOKEN AMOUNT = ${tokenAmount}`, {
                         isBot: true
                     });
