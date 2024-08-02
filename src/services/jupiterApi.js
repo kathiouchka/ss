@@ -6,7 +6,6 @@ import { isError } from 'jito-ts/dist/sdk/block-engine/utils.js';
 import fetch from 'node-fetch';
 import bs58 from 'bs58';
 import dotenv from 'dotenv';
-import { wallet } from '@project-serum/anchor';
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { log, LOG_LEVELS } from '../utils/logger.js';
 
@@ -18,7 +17,7 @@ if (!privateKey) {
 }
 
 const RPC_ENDPOINT = `https://mainnet.helius-rpc.com/?api-key=${process.env.API_KEY}`;
-const BLOCK_ENGINE_URL = process.env.BLOCK_ENGINE_URL;
+const BLOCK_ENGINE_URL = 'frankfurt.mainnet.block-engine.jito.wtf';
 
 const connection = new Connection(RPC_ENDPOINT, 'confirmed', {
     commitment: 'confirmed',
