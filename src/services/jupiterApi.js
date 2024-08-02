@@ -1,10 +1,14 @@
-import fetch from "node-fetch";
-import { Connection, Keypair, VersionedTransaction, PublicKey, sendAndConfirmRawTransaction, LAMPORTS_PER_SOL, Transaction, SystemProgram } from '@solana/web3.js';
+import { searcher } from 'jito-ts';
+const { searcherClient: createSearcherClient } = searcher;
+import { Connection, Keypair, PublicKey, VersionedTransaction, LAMPORTS_PER_SOL, Transaction, SystemProgram } from '@solana/web3.js';
+import { Bundle } from 'jito-ts/dist/sdk/block-engine/types.js';
+import { isError } from 'jito-ts/dist/sdk/block-engine/utils.js';
+import fetch from 'node-fetch';
 import bs58 from 'bs58';
 import dotenv from 'dotenv';
-import { Wallet } from '@project-serum/anchor';
+import { wallet } from '@project-serum/anchor';
 import { getAssociatedTokenAddress } from "@solana/spl-token";
-import { log, LOG_LEVELS, logTransaction } from '../utils/logger.js';
+import { log, LOG_LEVELS } from '../utils/logger.js';
 
 dotenv.config();
 
@@ -14,23 +18,18 @@ if (!privateKey) {
 }
 
 const RPC_ENDPOINT = `https://mainnet.helius-rpc.com/?api-key=${process.env.API_KEY}`;
+const BLOCK_ENGINE_URL = process.env.BLOCK_ENGINE_URL;
 
 const connection = new Connection(RPC_ENDPOINT, 'confirmed', {
     commitment: 'confirmed',
     timeout: 10000
 });
 
+const wallet = Keypair.fromSecretKey(bs58.decode(privateKey));
+const searcherClient = createSearcherClient(BLOCK_ENGINE_URL);
+
 const solAddress = "So11111111111111111111111111111111111111112";
 const SOLANA_GAS_FEE_PRICE = 0.000005 * LAMPORTS_PER_SOL;
-
-function sleep(ms) {
-    return new Promise((resolve) => {
-        setTimeout(resolve, ms);
-    });
-}
-
-const wallet = new Wallet(Keypair.fromSecretKey(bs58.decode(privateKey)));
-
 
 async function checkBalanceAndTransferSurplus() {
     try {
@@ -41,7 +40,6 @@ async function checkBalanceAndTransferSurplus() {
             const surplusSOL = balanceInSOL - 0.22;
             const surplusLamports = Math.floor(surplusSOL * LAMPORTS_PER_SOL);
 
-            // Get a recent blockhash
             const { blockhash } = await connection.getLatestBlockhash();
 
             const transaction = new Transaction().add(
@@ -52,19 +50,14 @@ async function checkBalanceAndTransferSurplus() {
                 })
             );
 
-            // Set the recent blockhash and the fee payer
             transaction.recentBlockhash = blockhash;
             transaction.feePayer = wallet.publicKey;
 
-            // Sign the transaction
             const signedTransaction = await wallet.signTransaction(transaction);
 
-            // Send and confirm the transaction
-            const signature = await sendAndConfirmRawTransaction(connection, signedTransaction.serialize(), {
+            const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
                 skipPreflight: true,
                 maxRetries: 5,
-                commitment: 'processed',
-                timeout: 40000
             });
 
             log(LOG_LEVELS.INFO, `Transferred ${surplusSOL.toFixed(6)} SOL to PROFIT_WALLET. Tx: https://solscan.io/tx/${signature}`, { isBot: true });
@@ -77,121 +70,95 @@ async function checkBalanceAndTransferSurplus() {
 }
 
 async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, slippage = 15) {
-    const maxRetries = 4;
-    let retryCount = 0;
-    let success = false;
+    try {
+        log(LOG_LEVELS.INFO, `Starting ${isBuy ? 'buy' : 'sell'} transaction for ${tokenAddress}`, { isBot: true });
 
-    while (retryCount < maxRetries && !success) {
-        try {
-            let amount, inputMint, outputMint;
+        let amount, inputMint, outputMint;
 
-            if (isBuy) {
-                const balance = await connection.getBalance(wallet.publicKey);
-                amount = Math.floor(balance * (percentage / 100)) - SOLANA_GAS_FEE_PRICE;
-                inputMint = solAddress;
-                outputMint = tokenAddress;
+        if (isBuy) {
+            const balance = await connection.getBalance(wallet.publicKey);
+            amount = Math.floor(balance * (percentage / 100)) - SOLANA_GAS_FEE_PRICE;
+            inputMint = solAddress;
+            outputMint = tokenAddress;
 
-                if (amount < 0) {
-                    log(LOG_LEVELS.ERROR, "Amount is less than gas fee", {
-                        isBot: true,
-                    });
-                    return false;
-                }
-
-                log(LOG_LEVELS.INFO, `Starting buy transaction for ${amount / LAMPORTS_PER_SOL} SOL worth of ${tokenAddress}`, {
-                    isBot: true,
-                });
-            } else {
-                const tokenPublicKey = new PublicKey(tokenAddress);
-                const tokenAccount = await getAssociatedTokenAddress(tokenPublicKey, wallet.publicKey);
-                const tokenBalance = await connection.getTokenAccountBalance(tokenAccount);
-                amount = Math.floor(tokenBalance.value.uiAmount * (percentage / 100) * Math.pow(10, tokenBalance.value.decimals));
-                inputMint = tokenAddress;
-                outputMint = solAddress;
-
-                log(LOG_LEVELS.INFO, `Starting sell transaction for ${percentage}% of ${tokenAddress}`, {
-                    isBot: true,
-                });
+            if (amount < 0) {
+                log(LOG_LEVELS.ERROR, "Amount is less than gas fee", { isBot: true });
+                return false;
             }
-
-            const response = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippage * 100}`);
-
-            if (!response.ok) {
-                throw new Error(`HTTP quote error! status: ${response.statusText}`);
-            }
-
-            const routes = await response.json();
-            log(LOG_LEVELS.DEBUG, `Received routes: ${JSON.stringify(routes)}, {}`, {
-                sendToDiscord: false,
-                isBot: true,
-            });
-
-            if (!routes || !routes.routePlan || routes.routePlan.length === 0) {
-                throw new Error("Invalid quote received");
-            }
-
-            const transaction_response = await fetch('https://quote-api.jup.ag/v6/swap', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    quoteResponse: routes,
-                    userPublicKey: wallet.publicKey.toString(),
-                    wrapUnwrapSOL: true,
-                    prioritizationFeeLamports: "auto",
-                    dynamicComputeUnitLimit: true,
-                })
-            });
-
-            if (!transaction_response.ok) {
-                throw new Error(`HTTP error! status: ${transaction_response.status}`);
-            }
-
-            const transactions = await transaction_response.json();
-            const { swapTransaction } = transactions;
-
-            const swapTransactionBuf = Buffer.from(swapTransaction, 'base64');
-            var transaction = VersionedTransaction.deserialize(swapTransactionBuf);
-            transaction.sign([wallet.payer]);
-
-            const rawTransaction = transaction.serialize();
-
-            const txid = await sendAndConfirmRawTransaction(connection, rawTransaction, {
-                skipPreflight: true,
-                maxRetries: 5,
-                commitment: 'processed',
-                timeout: 40000
-            });
-
-            log(LOG_LEVELS.INFO, `${isBuy ? 'Buy' : 'Sell'} Order:: https://solscan.io/tx/${txid}`, {
-                isBot: true,
-            });
-            success = true;
-
-            const txInfo = await connection.getTransaction(txid, {
-                maxSupportedTransactionVersion: 0
-            });
-            logTransaction(txInfo);
-
-        } catch (error) {
-            log(LOG_LEVELS.WARN, `Transaction failed, retrying (${retryCount + 1}/${maxRetries}). Error: ${error.message}`, {
-                isBot: true,
-            });
-            retryCount++;
-            await sleep(3000);
+        } else {
+            const tokenPublicKey = new PublicKey(tokenAddress);
+            const tokenAccount = await getAssociatedTokenAddress(tokenPublicKey, wallet.publicKey);
+            const tokenBalance = await connection.getTokenAccountBalance(tokenAccount);
+            amount = Math.floor(tokenBalance.value.uiAmount * (percentage / 100) * Math.pow(10, tokenBalance.value.decimals));
+            inputMint = tokenAddress;
+            outputMint = solAddress;
         }
-    }
 
-    if (!success) {
-        log(LOG_LEVELS.ERROR, `${isBuy ? 'Buy' : 'Sell'} transaction failed after ${maxRetries} attempts. Stopping program.`, {
-            isBot: true,
+        const response = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippage * 100}`);
+        if (!response.ok) {
+            throw new Error(`HTTP quote error! status: ${response.statusText}`);
+        }
+        const routes = await response.json();
+
+        const transaction_response = await fetch('https://quote-api.jup.ag/v6/swap', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                quoteResponse: routes,
+                userPublicKey: wallet.publicKey.toString(),
+                wrapUnwrapSOL: true,
+            })
         });
+        if (!transaction_response.ok) {
+            throw new Error(`HTTP error! status: ${transaction_response.status}`);
+        }
+        const { swapTransaction } = await transaction_response.json();
+
+        const swapTransactionBuf = Buffer.from(swapTransaction, 'base64');
+        const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
+        transaction.sign([wallet]);
+
+        const bundle = new Bundle([], 5);
+        let maybeBundle = bundle.addTransactions(transaction);
+        if (isError(maybeBundle)) {
+            throw maybeBundle;
+        }
+
+        const tipAccounts = await searcherClient.getTipAccounts();
+        const tipAccount = new PublicKey(tipAccounts[0]);
+        const { blockhash } = await connection.getLatestBlockhash();
+        maybeBundle = maybeBundle.addTipTx(wallet, 100_000, tipAccount, blockhash);
+        if (isError(maybeBundle)) {
+            throw maybeBundle;
+        }
+
+        const bundleUuid = await searcherClient.sendBundle(maybeBundle);
+        log(LOG_LEVELS.INFO, 'Bundle sent successfully', { bundleUuid, isBot: true });
+
+        await new Promise((resolve, reject) => {
+            searcherClient.onBundleResult(
+                (result) => {
+                    if (result.accepted) {
+                        log(LOG_LEVELS.INFO, 'Bundle accepted!', { isBot: true });
+                        resolve();
+                    } else {
+                        log(LOG_LEVELS.ERROR, 'Bundle not accepted', { isBot: true });
+                        reject(new Error('Bundle not accepted'));
+                    }
+                },
+                (error) => {
+                    log(LOG_LEVELS.ERROR, 'Error in bundle result', { error, isBot: true });
+                    reject(error);
+                }
+            );
+        });
+
+        log(LOG_LEVELS.INFO, `${isBuy ? 'Buy' : 'Sell'} order completed successfully`, { isBot: true });
+        return true;
+    } catch (error) {
+        log(LOG_LEVELS.ERROR, 'Error in tradeTokenWithJupiter', { error, isBot: true });
         return false;
     }
-
-    await sleep(1000);
-    return success;
 }
 
 export { tradeTokenWithJupiter, checkBalanceAndTransferSurplus };
