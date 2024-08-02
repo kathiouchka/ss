@@ -93,7 +93,7 @@ app.post('/webhook', async (req, res) => {
                 const amount = isBuy ? swapEvent.nativeInput.amount : swapEvent.nativeOutput.amount;
                 const mint = isBuy ? swapEvent.tokenOutputs[0].mint : swapEvent.tokenInputs[0].mint;
                 const type = isBuy ? 'buy' : 'sell';
-                const tokenAmount = isBuy ? swapEvent.tokenOutputs.amount : swapEvent.tokenInputs.amount;
+                const tokenAmount = isBuy ? swapEvent.tokenOutputs[0].amount : swapEvent.tokenInputs[0].amount;
                 recordTransaction(type, mint, tokenAmount, amount / LAMPORTS_PER_SOL);
                 
                 if (isBuy) {
