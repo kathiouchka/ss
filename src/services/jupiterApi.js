@@ -35,7 +35,7 @@ async function checkBalanceAndTransferSurplus() {
         const balance = await connection.getBalance(wallet.publicKey);
         const balanceInSOL = balance / LAMPORTS_PER_SOL;
 
-        if (balanceInSOL > 0.20) {
+        if (balanceInSOL > 0.22) {
             const surplusSOL = balanceInSOL - 0.22;
             const surplusLamports = Math.floor(surplusSOL * LAMPORTS_PER_SOL);
 
@@ -135,19 +135,26 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
         log(LOG_LEVELS.INFO, 'Bundle sent successfully', { bundleUuid, isBot: true });
 
         await new Promise((resolve, reject) => {
+            let bundleProcessed = false;
             searcherClient.onBundleResult(
                 (result) => {
-                    if (result.accepted) {
-                        log(LOG_LEVELS.INFO, 'Bundle accepted!', { isBot: true });
-                        resolve();
-                    } else {
-                        log(LOG_LEVELS.ERROR, 'Bundle not accepted', { isBot: true });
-                        reject(new Error('Bundle not accepted'));
+                    if (!bundleProcessed) {
+                        bundleProcessed = true;
+                        if (result.accepted) {
+                            log(LOG_LEVELS.INFO, 'Bundle accepted!', { isBot: true });
+                            resolve();
+                        } else {
+                            log(LOG_LEVELS.ERROR, 'Bundle not accepted', { isBot: true });
+                            reject(new Error('Bundle not accepted'));
+                        }
                     }
                 },
                 (error) => {
-                    log(LOG_LEVELS.ERROR, 'Error in bundle result', { error, isBot: true });
-                    reject(error);
+                    if (!bundleProcessed) {
+                        bundleProcessed = true;
+                        log(LOG_LEVELS.ERROR, 'Error in bundle result', { error, isBot: true });
+                        reject(error);
+                    }
                 }
             );
         });
