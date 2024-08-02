@@ -68,77 +68,93 @@ async function checkBalanceAndTransferSurplus() {
     }
 }
 
-async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, slippage = 15) {
-    try {
-        log(LOG_LEVELS.INFO, `Starting ${isBuy ? 'buy' : 'sell'} transaction for ${tokenAddress}`, { isBot: true });
+async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, slippage = 15, maxRetries = 3) {
+    let retries = 0;
+    while (retries < maxRetries) {
+        try {
+            log(LOG_LEVELS.INFO, `Starting ${isBuy ? 'buy' : 'sell'} transaction for ${tokenAddress}`, { isBot: true });
 
-        let amount, inputMint, outputMint;
+            let amount, inputMint, outputMint;
 
-        if (isBuy) {
-            const balance = await connection.getBalance(wallet.publicKey);
-            amount = Math.floor(balance * (percentage / 100)) - SOLANA_GAS_FEE_PRICE;
-            inputMint = solAddress;
-            outputMint = tokenAddress;
+            if (isBuy) {
+                const balance = await connection.getBalance(wallet.publicKey);
+                amount = Math.floor(balance * (percentage / 100)) - SOLANA_GAS_FEE_PRICE;
+                inputMint = solAddress;
+                outputMint = tokenAddress;
 
-            if (amount < 0) {
-                log(LOG_LEVELS.ERROR, "Amount is less than gas fee", { isBot: true });
+                if (amount < 0) {
+                    log(LOG_LEVELS.ERROR, "Amount is less than gas fee", { isBot: true });
+                    return false;
+                }
+            } else {
+                const tokenPublicKey = new PublicKey(tokenAddress);
+                const tokenAccount = await getAssociatedTokenAddress(tokenPublicKey, wallet.publicKey);
+                const tokenBalance = await connection.getTokenAccountBalance(tokenAccount);
+                amount = Math.floor(tokenBalance.value.uiAmount * (percentage / 100) * Math.pow(10, tokenBalance.value.decimals));
+                inputMint = tokenAddress;
+                outputMint = solAddress;
+            }
+
+            const response = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippage * 100}`);
+            if (!response.ok) {
+                throw new Error(`HTTP quote error! status: ${response.statusText}`);
+            }
+            const routes = await response.json();
+
+            const transaction_response = await fetch('https://quote-api.jup.ag/v6/swap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    quoteResponse: routes,
+                    userPublicKey: wallet.publicKey.toString(),
+                    wrapUnwrapSOL: true,
+                })
+            });
+            if (!transaction_response.ok) {
+                throw new Error(`HTTP error! status: ${transaction_response.status}`);
+            }
+            const { swapTransaction } = await transaction_response.json();
+
+            const swapTransactionBuf = Buffer.from(swapTransaction, 'base64');
+            const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
+            transaction.sign([wallet]);
+
+            const bundle = new Bundle([], 5);
+            let maybeBundle = bundle.addTransactions(transaction);
+            if (isError(maybeBundle)) {
+                throw maybeBundle;
+            }
+
+            const tipAccounts = await searcherClient.getTipAccounts();
+            const tipAccount = new PublicKey(tipAccounts[0]);
+            const { blockhash } = await connection.getLatestBlockhash();
+            maybeBundle = maybeBundle.addTipTx(wallet, 100_000, tipAccount, blockhash);
+            if (isError(maybeBundle)) {
+                throw maybeBundle;
+            }
+
+            log(LOG_LEVELS.INFO, 'Sending bundle...', { isBot: true });
+            const bundleUuid = await searcherClient.sendBundle(maybeBundle);
+
+            if (bundleUuid) {
+                log(LOG_LEVELS.INFO, 'Bundle sent successfully', { bundleUuid, isBot: true });
+                log(LOG_LEVELS.INFO, `${isBuy ? 'Buy' : 'Sell'} order completed successfully`, { isBot: true });
+                return true;
+            } else {
+                throw new Error('Bundle UUID not received');
+            }
+        } catch (error) {
+            retries++;
+            log(LOG_LEVELS.WARN, `Attempt ${retries} failed to send bundle to JITO: ${error.message}`, { isBot: true });
+
+            if (retries >= maxRetries) {
+                log(LOG_LEVELS.ERROR, 'Max retries reached. Failed to send bundle to JITO', { error, isBot: true });
                 return false;
             }
-        } else {
-            const tokenPublicKey = new PublicKey(tokenAddress);
-            const tokenAccount = await getAssociatedTokenAddress(tokenPublicKey, wallet.publicKey);
-            const tokenBalance = await connection.getTokenAccountBalance(tokenAccount);
-            amount = Math.floor(tokenBalance.value.uiAmount * (percentage / 100) * Math.pow(10, tokenBalance.value.decimals));
-            inputMint = tokenAddress;
-            outputMint = solAddress;
+
+            // Wait before retrying (exponential backoff)
+            await delay(Math.pow(2, retries) * 1000);
         }
-
-        const response = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippage * 100}`);
-        if (!response.ok) {
-            throw new Error(`HTTP quote error! status: ${response.statusText}`);
-        }
-        const routes = await response.json();
-
-        const transaction_response = await fetch('https://quote-api.jup.ag/v6/swap', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                quoteResponse: routes,
-                userPublicKey: wallet.publicKey.toString(),
-                wrapUnwrapSOL: true,
-            })
-        });
-        if (!transaction_response.ok) {
-            throw new Error(`HTTP error! status: ${transaction_response.status}`);
-        }
-        const { swapTransaction } = await transaction_response.json();
-
-        const swapTransactionBuf = Buffer.from(swapTransaction, 'base64');
-        const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
-        transaction.sign([wallet]);
-
-        const bundle = new Bundle([], 5);
-        let maybeBundle = bundle.addTransactions(transaction);
-        if (isError(maybeBundle)) {
-            throw maybeBundle;
-        }
-
-        const tipAccounts = await searcherClient.getTipAccounts();
-        const tipAccount = new PublicKey(tipAccounts[0]);
-        const { blockhash } = await connection.getLatestBlockhash();
-        maybeBundle = maybeBundle.addTipTx(wallet, 100_000, tipAccount, blockhash);
-        if (isError(maybeBundle)) {
-            throw maybeBundle;
-        }
-
-        log(LOG_LEVELS.INFO, 'Sending bundle...', { isBot: true });
-        const bundleUuid = await searcherClient.sendBundle(maybeBundle);
-        log(LOG_LEVELS.INFO, 'Bundle sent successfully', { bundleUuid, isBot: true });
-        log(LOG_LEVELS.INFO, `${isBuy ? 'Buy' : 'Sell'} order completed successfully`, { isBot: true });
-        return true;
-    } catch (error) {
-        log(LOG_LEVELS.ERROR, 'Error in tradeTokenWithJupiter', { error, isBot: true });
-        return false;
     }
 }
 
