@@ -135,26 +135,19 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
         log(LOG_LEVELS.INFO, 'Bundle sent successfully', { bundleUuid, isBot: true });
 
         await new Promise((resolve, reject) => {
-            let bundleProcessed = false;
             searcherClient.onBundleResult(
                 (result) => {
-                    if (!bundleProcessed) {
-                        bundleProcessed = true;
-                        if (result.accepted) {
-                            log(LOG_LEVELS.INFO, 'Bundle accepted!', { isBot: true });
-                            resolve();
-                        } else {
-                            log(LOG_LEVELS.ERROR, 'Bundle not accepted', { isBot: true });
-                            reject(new Error('Bundle not accepted'));
-                        }
+                    if (result.accepted) {
+                        log(LOG_LEVELS.INFO, 'Bundle accepted!', { isBot: true });
+                        resolve();
+                    } else {
+                        log(LOG_LEVELS.ERROR, 'Bundle not accepted', { isBot: true });
+                        reject(new Error('Bundle not accepted'));
                     }
                 },
                 (error) => {
-                    if (!bundleProcessed) {
-                        bundleProcessed = true;
-                        log(LOG_LEVELS.ERROR, 'Error in bundle result', { error, isBot: true });
-                        reject(error);
-                    }
+                    log(LOG_LEVELS.ERROR, 'Error in bundle result', { error, isBot: true });
+                    reject(error);
                 }
             );
         });
