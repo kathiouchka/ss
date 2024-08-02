@@ -102,7 +102,7 @@ app.post('/webhook', async (req, res) => {
                         isBot: true
                     });
                 } else {
-                    calculatePnL(currentTokenState.NEW_TOKEN_ADDRESS);
+                    calculatePnL(mint);
                     await checkBalanceAndTransferSurplus();
                 }
             }
