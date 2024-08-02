@@ -91,9 +91,9 @@ app.post('/webhook', async (req, res) => {
             if (event[0].tokenTransfers[0].fromUserAccount === process.env.BOT_WALLET) {
                 // Record the transaction for PnL calculation
                 const amount = isBuy ? swapEvent.nativeInput.amount : swapEvent.nativeOutput.amount;
-                const mint = isBuy ? swapEvent.tokenOutputs[0].mint : swapEvent.tokensInputs[0].mint;
+                const mint = isBuy ? swapEvent.tokenOutputs.mint : swapEvent.tokensInputs.mint;
                 const type = isBuy ? 'buy' : 'sell';
-                const tokenAmount = isBuy ? swapEvent.tokenOutputs[0].amount : swapEvent.tokenInputs[0].amount;
+                const tokenAmount = isBuy ? swapEvent.tokenOutputs.amount : swapEvent.tokenInputs.amount;
                 recordTransaction(type, mint, tokenAmount, amount / LAMPORTS_PER_SOL);
                 
                 if (isBuy) {
