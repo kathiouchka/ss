@@ -106,6 +106,7 @@ app.post('/webhook', async (req, res) => {
                         isBot: true
                     });
                 } else {
+                    currentTokenState.SOLD = true;
                     calculatePnL(mint);
                     await checkBalanceAndTransferSurplus();
                 }
@@ -161,7 +162,7 @@ app.post('/webhook', async (req, res) => {
                     color: 'PURPLE'
                 });
             } else if (rugPullRegex.test(event[0].description)) {
-                if (currentTokenState.NEW_TOKEN_ADDRESS !== null && currentTokenState.TOKEN_BOUGHT !== null) {
+                if (currentTokenState.NEW_TOKEN_ADDRESS !== null && currentTokenState.TOKEN_BOUGHT) {
                     // Record a transaction of 0 SOL
                     await recordTransaction(currentTokenState.NEW_TOKEN_ADDRESS, 0, 0);
 
@@ -235,8 +236,8 @@ app.post('/webhook', async (req, res) => {
                         });
                         currentTokenState.DISTRIBUTING = true;
 
-                        // Generate a random delay between 120 and 160 seconds
-                        const delay = Math.floor(Math.random() * (160 - 120 + 1) + 120) * 1000;
+                        // Generate a random delay between 20 and 40 seconds
+                        const delay = Math.floor(Math.random() * (40 - 20 + 1) + 20) * 1000;
 
                         setTimeout(async () => {
                             log(LOG_LEVELS.INFO, `Waited ${delay / 1000} seconds. Initiating buy.`, {
