@@ -3,6 +3,7 @@ const { searcherClient: createSearcherClient } = searcher;
 import { Connection, Keypair, PublicKey, VersionedTransaction, LAMPORTS_PER_SOL, Transaction, SystemProgram } from '@solana/web3.js';
 import { Bundle } from 'jito-ts/dist/sdk/block-engine/types.js';
 import { isError } from 'jito-ts/dist/sdk/block-engine/utils.js';
+import { Wallet } from '@project-serum/anchor';
 import fetch from 'node-fetch';
 import bs58 from 'bs58';
 import dotenv from 'dotenv';
@@ -24,7 +25,7 @@ const connection = new Connection(RPC_ENDPOINT, 'confirmed', {
     timeout: 10000
 });
 
-const wallet = Keypair.fromSecretKey(bs58.decode(privateKey));
+const wallet = new Wallet(Keypair.fromSecretKey(bs58.decode(privateKey)));
 const searcherClient = createSearcherClient(BLOCK_ENGINE_URL);
 
 const solAddress = "So11111111111111111111111111111111111111112";
@@ -35,8 +36,8 @@ async function checkBalanceAndTransferSurplus() {
         const balance = await connection.getBalance(wallet.publicKey);
         const balanceInSOL = balance / LAMPORTS_PER_SOL;
 
-        if (balanceInSOL > 0.22) {
-            const surplusSOL = balanceInSOL - 0.22;
+        if (balanceInSOL > 0.25) {
+            const surplusSOL = balanceInSOL - 0.25;
             const surplusLamports = Math.floor(surplusSOL * LAMPORTS_PER_SOL);
 
             const { blockhash } = await connection.getLatestBlockhash();
