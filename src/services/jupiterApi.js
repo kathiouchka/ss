@@ -25,7 +25,8 @@ const connection = new Connection(RPC_ENDPOINT, 'confirmed', {
     timeout: 10000
 });
 
-const wallet = new Wallet(Keypair.fromSecretKey(bs58.decode(privateKey)));
+const walletSend = new Wallet(Keypair.fromSecretKey(bs58.decode(privateKey)));
+const wallet = Keypair.fromSecretKey(bs58.decode(privateKey));
 const searcherClient = createSearcherClient(BLOCK_ENGINE_URL);
 
 const solAddress = "So11111111111111111111111111111111111111112";
@@ -33,7 +34,7 @@ const SOLANA_GAS_FEE_PRICE = 0.000005 * LAMPORTS_PER_SOL;
 
 async function checkBalanceAndTransferSurplus() {
     try {
-        const balance = await connection.getBalance(wallet.publicKey);
+        const balance = await connection.getBalance(walletSend.publicKey);
         const balanceInSOL = balance / LAMPORTS_PER_SOL;
 
         if (balanceInSOL > 0.25) {
@@ -44,16 +45,16 @@ async function checkBalanceAndTransferSurplus() {
 
             const transaction = new Transaction().add(
                 SystemProgram.transfer({
-                    fromPubkey: wallet.publicKey,
+                    fromPubkey: walletSend.publicKey,
                     toPubkey: new PublicKey(process.env.PROFIT_WALLET),
                     lamports: surplusLamports,
                 })
             );
 
             transaction.recentBlockhash = blockhash;
-            transaction.feePayer = wallet.publicKey;
+            transaction.feePayer = walletSend.publicKey;
 
-            const signedTransaction = await wallet.signTransaction(transaction);
+            const signedTransaction = await walletSend.signTransaction(transaction);
 
             const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
                 skipPreflight: true,
