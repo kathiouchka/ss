@@ -154,7 +154,8 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
             }
 
             // Wait before retrying (exponential backoff)
-            await delay(Math.pow(2, retries) * 1000);
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retries) * 1000));
+            
         }
     }
 }
