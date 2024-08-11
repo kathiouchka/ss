@@ -37,8 +37,8 @@ async function checkBalanceAndTransferSurplus() {
         const balance = await connection.getBalance(walletSend.publicKey);
         const balanceInSOL = balance / LAMPORTS_PER_SOL;
 
-        if (balanceInSOL > 0.48) {
-            const surplusSOL = balanceInSOL - 0.48;
+        if (balanceInSOL > 0.58) {
+            const surplusSOL = balanceInSOL - 0.58;
             const surplusLamports = Math.floor(surplusSOL * LAMPORTS_PER_SOL);
 
             const { blockhash } = await connection.getLatestBlockhash();
