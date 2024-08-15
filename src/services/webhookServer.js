@@ -240,10 +240,10 @@ app.post('/webhook', async (req, res) => {
                         const delay = Math.floor(Math.random() * (15 - 5 + 1) + 5) * 1000;
 
                         setTimeout(async () => {
-                            log(LOG_LEVELS.INFO, `Waited ${delay / 1000} seconds. Initiating buy.`, {
+                            log(LOG_LEVELS.INFO, `Waited ${delay / 1000} seconds. Initiating FAKE buy.`, {
                                 isBot: true,
                             });
-                            await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 50, true, 10);
+                            // await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 50, true, 10);
                             currentTokenState.TOKEN_BOUGHT = true;
                         }, delay);
 
