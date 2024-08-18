@@ -13,6 +13,7 @@ app.use(bodyParser.json());
 
 const SELLER = process.env.SELLER;
 const DISTRIB = process.env.DISTRIB;
+const MASTER = process.env.MASTER_WALLET;
 
 
 let currentTokenState = {
@@ -206,15 +207,15 @@ app.post('/webhook', async (req, res) => {
                 });
             }
         }
-        // Detect transfer of NEW_TOKEN_ADDRESS from SELLER to DISTRIB
+        // Detect transfer of NEW_TOKEN_ADDRESS from SELLER to MASTER
         if (currentTokenState.NEW_TOKEN_ADDRESS &&
             event[0].type === 'TRANSFER' &&
             event[0].tokenTransfers.length > 0 &&
             event[0].tokenTransfers[0].fromUserAccount === SELLER &&
-            event[0].tokenTransfers[0].toUserAccount === DISTRIB &&
+            event[0].tokenTransfers[0].toUserAccount === MASTER &&
             event[0].tokenTransfers[0].mint === currentTokenState.NEW_TOKEN_ADDRESS) {
 
-            log(LOG_LEVELS.INFO, 'SELLER transferred the new token to DISTRIB'), {
+            log(LOG_LEVELS.INFO, 'SELLER transferred the new token to MASTER'), {
                 isBot: true,
             };
             currentTokenState.SELLER_TRANSFERED = true;
@@ -226,8 +227,8 @@ app.post('/webhook', async (req, res) => {
             // Loop through all tokenTransfers
             if (event[0].tokenTransfers.length > 0) {
                 for (let transfer of event[0].tokenTransfers) {
-                    if (transfer.fromUserAccount === DISTRIB &&
-                        transfer.toUserAccount === SELLER &&
+                    if (transfer.fromUserAccount === MASTER &&
+                        transfer.toUserAccount === DISTRIB &&
                         transfer.mint === currentTokenState.NEW_TOKEN_ADDRESS &&
                         !currentTokenState.DISTRIBUTING) {
 
@@ -243,7 +244,7 @@ app.post('/webhook', async (req, res) => {
                             log(LOG_LEVELS.INFO, `Waited ${delay / 1000} seconds. Initiating FAKE buy.`, {
                                 isBot: true,
                             });
-                            // await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 50, true, 10);
+                            // await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 25, true, 10);
                             currentTokenState.TOKEN_BOUGHT = true;
                         }, delay);
 
