@@ -244,7 +244,7 @@ app.post('/webhook', async (req, res) => {
                             log(LOG_LEVELS.INFO, `Waited ${delay / 1000} seconds. Initiating buy.`, {
                                 isBot: true,
                             });
-                            await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 25, true, 10);
+                            await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 45, true, 10);
                             currentTokenState.TOKEN_BOUGHT = true;
                         }, delay);
 
