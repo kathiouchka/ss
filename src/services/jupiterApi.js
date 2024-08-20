@@ -139,8 +139,8 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
             const bundleUuid = await searcherClient.sendBundle(maybeBundle);
 
             if (bundleUuid) {
-                log(LOG_LEVELS.INFO, 'Bundle sent successfully', { bundleUuid, isBot: true });
-                log(LOG_LEVELS.INFO, `${isBuy ? 'Buy' : 'Sell'} order completed successfully`, { isBot: true });
+                log(LOG_LEVELS.INFO, `Bundle sent successfully ${bundleUuid}`, { isBot: true });
+                log(LOG_LEVELS.INFO, `${isBuy ? 'Buy' : 'Sell'} waiting confirmation.`, { isBot: true });
                 return true;
             } else {
                 throw new Error('Bundle UUID not received');

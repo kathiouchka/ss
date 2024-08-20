@@ -15,6 +15,10 @@ const SELLER = process.env.SELLER;
 const DISTRIB = process.env.DISTRIB;
 const MASTER = process.env.MASTER_WALLET;
 
+const MAX_RETRY_ATTEMPTS = 3;
+let pendingBuy = null;
+let retryCount = 0;
+
 
 let currentTokenState = {
     NEW_TOKEN_ADDRESS: null,
@@ -102,10 +106,19 @@ app.post('/webhook', async (req, res) => {
                 recordTransaction(type, mint, tokenAmount, amount / LAMPORTS_PER_SOL);
                 
                 if (isBuy) {
-                    currentTokenState.TOKEN_BOUGHT = true;
-                    log(LOG_LEVELS.INFO, `Bot wallet bought the token. TOKEN_BOUGHT set to true.`, {
-                        isBot: true
-                    });
+                    if (pendingBuy && pendingBuy.tokenAddress === currentTokenState.NEW_TOKEN_ADDRESS) {
+                        clearTimeout(pendingBuy.timeout);
+                        pendingBuy = null;
+                        retryCount = 0;
+                        currentTokenState.TOKEN_BOUGHT = true;
+                        log(LOG_LEVELS.INFO, `Buy confirmed for ${currentTokenState.NEW_TOKEN_ADDRESS}`, {
+                            isBot: true
+                        });
+                    } else {
+                        log(LOG_LEVELS.WARN, `Received buy confirmation for unexpected token: ${currentTokenState.NEW_TOKEN_ADDRESS}`, {
+                            isBot: true
+                        });
+                    }
                 } else {
                     currentTokenState.SOLD = true;
                     calculatePnL(mint);
@@ -244,8 +257,36 @@ app.post('/webhook', async (req, res) => {
                             log(LOG_LEVELS.INFO, `Waited ${delay / 1000} seconds. Initiating buy.`, {
                                 isBot: true,
                             });
-                            await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 45, true, 10);
-                            currentTokenState.TOKEN_BOUGHT = true;
+                            const buyAttempt = async () => {
+                                if (retryCount >= MAX_RETRY_ATTEMPTS) {
+                                    log(LOG_LEVELS.ERROR, `Max retry attempts reached for ${currentTokenState.NEW_TOKEN_ADDRESS}. Giving up.`, {
+                                        isBot: true
+                                    });
+                                    pendingBuy = null;
+                                    retryCount = 0;
+                                    return;
+                                }
+            
+                                const buySuccess = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 45, true, 10);
+                                if (buySuccess) {
+                                    pendingBuy = {
+                                        tokenAddress: currentTokenState.NEW_TOKEN_ADDRESS,
+                                        timeout: setTimeout(async () => {
+                                            log(LOG_LEVELS.WARN, `Buy confirmation not received within 10 seconds. Retry attempt ${retryCount + 1}/${MAX_RETRY_ATTEMPTS}.`, {
+                                                isBot: true,
+                                            });
+                                            pendingBuy = null;
+                                            retryCount++;
+                                            await buyAttempt();
+                                        }, 10000)
+                                    };
+                                } else {
+                                    log(LOG_LEVELS.ERROR, `Failed to initiate buy for ${currentTokenState.NEW_TOKEN_ADDRESS}`, {
+                                        isBot: true
+                                    });
+                                }
+                            };
+                            await buyAttempt();
                         }, delay);
 
                         break; // Exit the loop once we've found the transfer we're looking for
