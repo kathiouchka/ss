@@ -80,7 +80,7 @@ async function monitorAndSell(tokenAddress, initialPrice) {
         return;
     }
 
-    const threshold = initialPrice * 1.5; // 50% price increase
+    const threshold = initialPrice * 1.4 // 50% price increase
 
     while (true) {
         // Check if stopMonitoring is set to true and exit the loop if it is
@@ -89,7 +89,7 @@ async function monitorAndSell(tokenAddress, initialPrice) {
             break;
         }
 
-        const currentPriceInfo = await getTokenInfo(tokenAddress);
+        const currentPriceInfo = await getTokenInfo(tokenAddress, true);
         if (currentPriceInfo && currentPriceInfo.price >= threshold) {
             await tradeTokenWithJupiter(tokenAddress, 100, false); // Sell 100% of the tokens
             break;
