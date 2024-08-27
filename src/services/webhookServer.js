@@ -21,6 +21,7 @@ let retryCount = 0;
 
 
 let currentTokenState = {
+    LAST_TOKEN_ADDRESS: null,
     NEW_TOKEN_ADDRESS: null,
     SELLER_TRANSFERED: false,
     TOKEN_BOUGHT: false,
@@ -160,7 +161,7 @@ app.post('/webhook', async (req, res) => {
                     await checkBalanceAndTransferSurplus();
                 }
             }
-            if (solAmount >= 149.5 * 1e9 && event[0].tokenTransfers[0].fromUserAccount === SELLER && currentTokenState.NEW_TOKEN_ADDRESS == null) {
+            if (solAmount >= 149.5 * 1e9 && event[0].tokenTransfers[0].fromUserAccount === SELLER && currentTokenState.LAST_TOKEN_ADDRESS != swapEvent.tokenInputs[0].mint) {
                 currentTokenState.NEW_TOKEN_ADDRESS = isBuy ? swapEvent.tokenOutputs[0].mint : swapEvent.tokenInputs[0].mint;
                 log(LOG_LEVELS.INFO, `Reset of the variables : new token detected: ${currentTokenState.NEW_TOKEN_ADDRESS}`, {
                     isBot: true
@@ -355,6 +356,7 @@ app.post('/webhook', async (req, res) => {
                 currentTokenState.SOLD = true;
                 // Reset the state for the next token
                 currentTokenState = {
+                    LAST_TOKEN_ADDRESS: currentTokenState.NEW_TOKEN_ADDRESS,
                     NEW_TOKEN_ADDRESS: null,
                     SELLER_TRANSFERED: false,
                     TOKEN_BOUGHT: false,
