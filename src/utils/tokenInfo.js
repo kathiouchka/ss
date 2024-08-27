@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { Connection, PublicKey } from '@solana/web3.js';
+import { log, LOG_LEVELS } from '../utils/logger.js';
 
 const connection = new Connection('https://api.mainnet-beta.solana.com');
 
