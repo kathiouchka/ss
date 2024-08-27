@@ -7,10 +7,14 @@ const connection = new Connection('https://api.mainnet-beta.solana.com');
 async function getTokenInfo(mint, fetchJup) {
     try {
         const mintAccountInfo = await connection.getParsedAccountInfo(new PublicKey(mint));
-        const freezeAuthority = mintAccountInfo.value.data.parsed.info.freezeAuthority;
-        tokenInfo.price = null
+        const freezeAuthority = mintAccountInfo.value?.data?.parsed?.info?.freezeAuthority || null;
 
-        if (fetchJup == true) {
+        let tokenInfo = {
+            price: null,
+            isFreezable: freezeAuthority !== null,
+        };
+
+        if (fetchJup) {
             const jupiterApiUrl = `https://price.jup.ag/v6/price?ids=${mint}&vsToken=SOL`;
 
             // Fetch price from Jupiter API
@@ -23,16 +27,20 @@ async function getTokenInfo(mint, fetchJup) {
                 }
                 throw new Error("Jupiter API failed to return a valid price.");
             };
-            fetchFromJupiter()
+
+            try {
+                const jupiterResult = await fetchFromJupiter();
+                tokenInfo.price = jupiterResult.price;
+            } catch (error) {
+                log(LOG_LEVELS.ERROR, 'Error fetching price from Jupiter API', { error });
+            }
         }
-        return {
-            price: tokenInfo.price,
-            isFreezable: freezeAuthority !== null,
-        };
+
+        return tokenInfo;
     } catch (error) {
         log(LOG_LEVELS.ERROR, 'Error fetching token info', { error });
+        return null;
     }
-    return null;
 }
 
 export {
