@@ -6,6 +6,9 @@ const connection = new Connection('https://api.mainnet-beta.solana.com');
 
 async function getTokenInfo(mint, fetchJup) {
     try {
+        const mintAccountInfo = await connection.getParsedAccountInfo(new PublicKey(mint));
+        const freezeAuthority = mintAccountInfo.value.data.parsed.info.freezeAuthority;
+        tokenInfo.price = null
 
         if (fetchJup == true) {
             const jupiterApiUrl = `https://price.jup.ag/v6/price?ids=${mint}&vsToken=SOL`;
@@ -16,19 +19,12 @@ async function getTokenInfo(mint, fetchJup) {
                 if (response.data && response.data.data && response.data.data[mint]) {
                     return {
                         price: response.data.data[mint].price,
-                        source: "jupiter",
                     };
                 }
                 throw new Error("Jupiter API failed to return a valid price.");
             };
-
             fetchFromJupiter()
         }
-
-        // Fetch mint account information to check if the token is freezable
-        const mintAccountInfo = await connection.getParsedAccountInfo(new PublicKey(mint));
-        const freezeAuthority = mintAccountInfo.value.data.parsed.info.freezeAuthority;
-
         return {
             price: tokenInfo.price,
             isFreezable: freezeAuthority !== null,
