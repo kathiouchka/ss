@@ -70,6 +70,40 @@ function recordTransaction(type, tokenAddress, tokenAmount, solAmount) {
     transactions[tokenAddress].push({ type, tokenAmount, solAmount, timestamp: Date.now() });
 }
 
+// Define a stop flag
+let stopMonitoring = false;
+
+async function monitorAndSell(tokenAddress, initialPrice) {
+    if (initialPrice === null) {
+        log(LOG_LEVELS.ERROR, 'Failed to retrieve initial price, cannot monitor price changes.');
+        return;
+    }
+
+    const threshold = initialPrice * 1.5; // 50% price increase
+
+    while (true) {
+        // Check if stopMonitoring is set to true and exit the loop if it is
+        if (stopMonitoring) {
+            log(LOG_LEVELS.INFO, 'Monitoring stopped by external event.');
+            break;
+        }
+
+        const currentPriceInfo = await getTokenInfo(tokenAddress);
+        if (currentPriceInfo && currentPriceInfo.price >= threshold) {
+            await tradeTokenWithJupiter(tokenAddress, 100, false); // Sell 100% of the tokens
+            break;
+        }
+
+        // Wait 10 seconds before checking again
+        await new Promise(resolve => setTimeout(resolve, 10000));
+    }
+}
+
+// Somewhere else in your code, you can stop the monitoring like this:
+function stopMonitoringFunction() {
+    stopMonitoring = true;
+}
+
 app.post('/webhook', async (req, res) => {
     const event = req.body;
 
@@ -100,11 +134,11 @@ app.post('/webhook', async (req, res) => {
                 const type = isBuy ? 'buy' : 'sell';
                 const tokenInfo = isBuy ? swapEvent.tokenOutputs[0].rawTokenAmount : swapEvent.tokenInputs[0].rawTokenAmount;
                 const tokenAmount = parseFloat(tokenInfo.tokenAmount) / Math.pow(10, tokenInfo.decimals);
-                    log(LOG_LEVELS.INFO, `TOKEN AMOUNT = ${tokenAmount}`, {
-                        isBot: true
-                    });
+                log(LOG_LEVELS.INFO, `TOKEN AMOUNT = ${tokenAmount}`, {
+                    isBot: true
+                });
                 recordTransaction(type, mint, tokenAmount, amount / LAMPORTS_PER_SOL);
-                
+
                 if (isBuy) {
                     if (pendingBuy && pendingBuy.tokenAddress === currentTokenState.NEW_TOKEN_ADDRESS) {
                         clearTimeout(pendingBuy.timeout);
@@ -122,6 +156,7 @@ app.post('/webhook', async (req, res) => {
                 } else {
                     currentTokenState.SOLD = true;
                     calculatePnL(mint);
+                    stopMonitoringFunction();
                     await checkBalanceAndTransferSurplus();
                 }
             }
@@ -241,11 +276,11 @@ app.post('/webhook', async (req, res) => {
             if (event[0].tokenTransfers.length > 0) {
                 for (let transfer of event[0].tokenTransfers) {
                     if (transfer.fromUserAccount === SELLER &&
-                        transfer.toUserAccount === SELLER &&
+                        transfer.toUserAccount === DISTRIB &&
                         transfer.mint === currentTokenState.NEW_TOKEN_ADDRESS &&
                         !currentTokenState.DISTRIBUTING) {
 
-                        log(LOG_LEVELS.INFO, 'SELLER distributed to SELLER. Waiting before initiating buy.', {
+                        log(LOG_LEVELS.INFO, 'SELLER distributed to DISTRIB. Waiting before initiating buy.', {
                             isBot: true,
                         });
                         currentTokenState.DISTRIBUTING = true;
@@ -266,9 +301,9 @@ app.post('/webhook', async (req, res) => {
                                     retryCount = 0;
                                     return;
                                 }
-            
-                                const buySuccess = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 20, true, 10);
-                                if (buySuccess) {
+
+                                const buy = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 20, true, 10);
+                                if (buy && buy.success) {
                                     pendingBuy = {
                                         tokenAddress: currentTokenState.NEW_TOKEN_ADDRESS,
                                         timeout: setTimeout(async () => {
@@ -280,6 +315,7 @@ app.post('/webhook', async (req, res) => {
                                             await buyAttempt();
                                         }, 10000)
                                     };
+                                    monitorAndSell(currentTokenState.NEW_TOKEN_ADDRESS, buySuccess.initialPrice);
                                 } else {
                                     log(LOG_LEVELS.ERROR, `Failed to initiate buy for ${currentTokenState.NEW_TOKEN_ADDRESS}`, {
                                         isBot: true

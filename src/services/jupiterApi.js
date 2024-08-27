@@ -141,7 +141,11 @@ async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, sli
             if (bundleUuid) {
                 log(LOG_LEVELS.INFO, `Bundle sent successfully ${bundleUuid}`, { isBot: true });
                 log(LOG_LEVELS.INFO, `${isBuy ? 'Buy' : 'Sell'} waiting confirmation.`, { isBot: true });
-                return true;
+                if (isBuy) {
+                    const tokenInfo = await getTokenInfo(tokenAddress); // Capture the initial price when buying
+                    initialPrice = tokenInfo ? tokenInfo.price : null;
+                }
+                return { success: true, initialPrice };
             } else {
                 throw new Error('Bundle UUID not received');
             }
