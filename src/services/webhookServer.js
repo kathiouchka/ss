@@ -161,8 +161,10 @@ app.post('/webhook', async (req, res) => {
                     await checkBalanceAndTransferSurplus();
                 }
             }
-            if (solAmount >= 149.5 * 1e9 && event[0].tokenTransfers[0].fromUserAccount === SELLER && currentTokenState.LAST_TOKEN_ADDRESS != swapEvent.tokenInputs[0].mint) {
+            if (solAmount >= 149.5 * 1e9 && event[0].tokenTransfers[0].fromUserAccount === SELLER) {
                 currentTokenState.NEW_TOKEN_ADDRESS = isBuy ? swapEvent.tokenOutputs[0].mint : swapEvent.tokenInputs[0].mint;
+                if (currentTokenState.NEW_TOKEN_ADDRESS == currentTokenState.LAST_TOKEN_ADDRESS)
+                    return res.status(200).send('Token mint already known')
                 log(LOG_LEVELS.INFO, `Reset of the variables : new token detected: ${currentTokenState.NEW_TOKEN_ADDRESS}`, {
                     isBot: true
                 });
@@ -287,7 +289,7 @@ app.post('/webhook', async (req, res) => {
                         currentTokenState.DISTRIBUTING = true;
 
                         // Generate a random delay between 5 and 15 seconds
-                        const delay = Math.floor(Math.random() * (15 - 5 + 1) + 5) * 1000;
+                        const delay = Math.floor(Math.random() * (80 - 60 + 1) + 5) * 1000;
 
                         setTimeout(async () => {
                             log(LOG_LEVELS.INFO, `Waited ${delay / 1000} seconds. Initiating buy.`, {
