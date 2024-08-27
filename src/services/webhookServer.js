@@ -172,7 +172,7 @@ app.post('/webhook', async (req, res) => {
                     isThird: true,
                 });
 
-                const tokenInfo = await getTokenInfo(currentTokenState.NEW_TOKEN_ADDRESS);
+                const tokenInfo = await getTokenInfo(currentTokenState.NEW_TOKEN_ADDRESS, true);
                 if (tokenInfo && tokenInfo.isFreezable) {
                     log(LOG_LEVELS.WARN, `Token ${currentTokenState.NEW_TOKEN_ADDRESS} is freezable. Aborting buy`, {
                         isBot: true

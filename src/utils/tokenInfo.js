@@ -3,10 +3,9 @@ import { Connection, PublicKey } from '@solana/web3.js';
 
 const connection = new Connection('https://api.mainnet-beta.solana.com');
 
-async function getTokenInfo(mint) {
+async function getTokenInfo(mint, freezeFlag) {
     try {
         const jupiterApiUrl = `https://price.jup.ag/v6/price?ids=${mint}&vsToken=SOL`;
-        // const dexScreenerApiUrl = `https://api.dexscreener.com/latest/dex/tokens/${mint}`;
 
         // Fetch price from Jupiter API
         const fetchFromJupiter = async () => {
@@ -21,7 +20,9 @@ async function getTokenInfo(mint) {
         };
 
         // Use Promise.race to get the fastest response
-        fetchFromJupiter()
+        if (!freezeFlag) {
+            fetchFromJupiter()
+        }
 
         // Fetch mint account information to check if the token is freezable
         const mintAccountInfo = await connection.getParsedAccountInfo(new PublicKey(mint));

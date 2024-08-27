@@ -3,6 +3,7 @@ const { searcherClient: createSearcherClient } = searcher;
 import { Connection, Keypair, PublicKey, VersionedTransaction, LAMPORTS_PER_SOL, Transaction, SystemProgram } from '@solana/web3.js';
 import { Bundle } from 'jito-ts/dist/sdk/block-engine/types.js';
 import { isError } from 'jito-ts/dist/sdk/block-engine/utils.js';
+import { getTokenInfo } from '../utils/tokenInfo.js';
 import { Wallet } from '@project-serum/anchor';
 import fetch from 'node-fetch';
 import bs58 from 'bs58';
