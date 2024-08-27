@@ -125,7 +125,7 @@ app.post('/webhook', async (req, res) => {
                     await checkBalanceAndTransferSurplus();
                 }
             }
-            if (solAmount >= 149.5 * 1e9 && solAmount <= 150.5 * 1e9 && event[0].tokenTransfers[0].fromUserAccount === SELLER) {
+            if (solAmount >= 149.5 * 1e9 && event[0].tokenTransfers[0].fromUserAccount === SELLER && currentTokenState.NEW_TOKEN_ADDRESS == null) {
                 currentTokenState.NEW_TOKEN_ADDRESS = isBuy ? swapEvent.tokenOutputs[0].mint : swapEvent.tokenInputs[0].mint;
                 log(LOG_LEVELS.INFO, `Reset of the variables : new token detected: ${currentTokenState.NEW_TOKEN_ADDRESS}`, {
                     isBot: true
@@ -225,10 +225,10 @@ app.post('/webhook', async (req, res) => {
             event[0].type === 'TRANSFER' &&
             event[0].tokenTransfers.length > 0 &&
             event[0].tokenTransfers[0].fromUserAccount === SELLER &&
-            event[0].tokenTransfers[0].toUserAccount === MASTER &&
+            event[0].tokenTransfers[0].toUserAccount === SELLER &&
             event[0].tokenTransfers[0].mint === currentTokenState.NEW_TOKEN_ADDRESS) {
 
-            log(LOG_LEVELS.INFO, 'SELLER transferred the new token to MASTER'), {
+            log(LOG_LEVELS.INFO, 'SELLER transferred the new token to SELLER'), {
                 isBot: true,
             };
             currentTokenState.SELLER_TRANSFERED = true;
@@ -240,12 +240,12 @@ app.post('/webhook', async (req, res) => {
             // Loop through all tokenTransfers
             if (event[0].tokenTransfers.length > 0) {
                 for (let transfer of event[0].tokenTransfers) {
-                    if (transfer.fromUserAccount === MASTER &&
-                        transfer.toUserAccount === DISTRIB &&
+                    if (transfer.fromUserAccount === SELLER &&
+                        transfer.toUserAccount === SELLER &&
                         transfer.mint === currentTokenState.NEW_TOKEN_ADDRESS &&
                         !currentTokenState.DISTRIBUTING) {
 
-                        log(LOG_LEVELS.INFO, 'DISTRIB distributed to SELLER. Waiting before initiating buy.', {
+                        log(LOG_LEVELS.INFO, 'SELLER distributed to SELLER. Waiting before initiating buy.', {
                             isBot: true,
                         });
                         currentTokenState.DISTRIBUTING = true;
@@ -267,7 +267,7 @@ app.post('/webhook', async (req, res) => {
                                     return;
                                 }
             
-                                const buySuccess = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 45, true, 10);
+                                const buySuccess = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 20, true, 10);
                                 if (buySuccess) {
                                     pendingBuy = {
                                         tokenAddress: currentTokenState.NEW_TOKEN_ADDRESS,
