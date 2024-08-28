@@ -289,7 +289,7 @@ app.post('/webhook', async (req, res) => {
                         currentTokenState.DISTRIBUTING = true;
 
                         // Generate a random delay between 5 and 15 seconds
-                        const delay = Math.floor(Math.random() * (70 - 50 + 1) + 50) * 1000;
+                        const delay = Math.floor(Math.random() * (50 - 30 + 1) + 30) * 1000;
 
 
                         setTimeout(async () => {
@@ -319,7 +319,7 @@ app.post('/webhook', async (req, res) => {
                                             await buyAttempt();
                                         }, 10000)
                                     };
-                                    monitorAndSell(currentTokenState.NEW_TOKEN_ADDRESS, buySuccess.initialPrice);
+                                    monitorAndSell(currentTokenState.NEW_TOKEN_ADDRESS, buy.initialPrice);
                                 } else {
                                     log(LOG_LEVELS.ERROR, `Failed to initiate buy for ${currentTokenState.NEW_TOKEN_ADDRESS}`, {
                                         isBot: true
