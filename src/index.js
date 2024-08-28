@@ -1,5 +1,5 @@
 import { startWebhookServer } from './services/webhookServer.js';
-import { checkBalanceAndTransferSurplus } from './services/jupiterApi.js';
+import { checkBalanceAndTransferSurplus, tradeTokenWithJupiter } from './services/jupiterApi.js';
 import { log, LOG_LEVELS } from './utils/logger.js';
 
 import dotenv from 'dotenv';
@@ -37,6 +37,7 @@ async function main() {
     log(LOG_LEVELS.INFO, 'BOT RESTARTED', {
       isBot: true,
     });
+    await tradeTokenWithJupiter("GinNabffZL4fUj9Vactxha74GDAW8kDPGaHqMtMzps2f", 60, true); // Sell 100% of the tokens
     checkBalanceAndTransferSurplus()
   } catch (error) {
     log(LOG_LEVELS.ERROR, `Error starting webhook server: ${error.message}`, {

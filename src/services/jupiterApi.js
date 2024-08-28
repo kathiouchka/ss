@@ -73,6 +73,7 @@ async function checkBalanceAndTransferSurplus() {
 
 async function tradeTokenWithJupiter(tokenAddress, percentage, isBuy = true, slippage = 15, maxRetries = 3) {
     let retries = 0;
+    let initialPrice = null;
     while (retries < maxRetries) {
         try {
             log(LOG_LEVELS.INFO, `Starting ${isBuy ? 'buy' : 'sell'} transaction for ${tokenAddress}`, { isBot: true });
