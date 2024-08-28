@@ -289,7 +289,8 @@ app.post('/webhook', async (req, res) => {
                         currentTokenState.DISTRIBUTING = true;
 
                         // Generate a random delay between 5 and 15 seconds
-                        const delay = Math.floor(Math.random() * (80 - 60 + 1) + 5) * 1000;
+                        const delay = Math.floor(Math.random() * (70 - 50 + 1) + 50) * 1000;
+
 
                         setTimeout(async () => {
                             log(LOG_LEVELS.INFO, `Waited ${delay / 1000} seconds. Initiating buy.`, {
