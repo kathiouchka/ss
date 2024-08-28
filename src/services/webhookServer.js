@@ -306,7 +306,7 @@ app.post('/webhook', async (req, res) => {
                                     return;
                                 }
 
-                                const buy = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 50, true, 10);
+                                // const buy = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 50, true, 10);
                                 if (buy && buy.success) {
                                     pendingBuy = {
                                         tokenAddress: currentTokenState.NEW_TOKEN_ADDRESS,
