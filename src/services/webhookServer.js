@@ -112,7 +112,7 @@ app.post('/webhook', async (req, res) => {
         log(LOG_LEVELS.INFO, `Received webhook event: ${JSON.stringify(event)}`, {
             sendToDiscord: false,
         });
-        const rugPullRegex = new RegExp(`${process.env.MASTER_WALLET} transferred a total 450\\.\\d+ SOL to multiple accounts\\.`);
+        const rugPullRegex = new RegExp(`${process.env.MASTER_WALLET} transferred a total (4[5-9]\\d|[5-9]\\d{2,}|\\d{4,})\\.\\d+ SOL to multiple accounts\\.`);
         if (event[0].type === 'SWAP') {
             const swapEvent = event[0].events.swap;
             const isBuy = swapEvent.nativeInput !== null;
@@ -161,7 +161,7 @@ app.post('/webhook', async (req, res) => {
                     await checkBalanceAndTransferSurplus();
                 }
             }
-            if (solAmount >= 149.5 * 1e9 && event[0].tokenTransfers[0].fromUserAccount === SELLER) {
+            if (solAmount >= 149.5 * 1e9 && event[0].tokenTransfers[0].fromUserAccount === SELLER && isBuy) {
                 currentTokenState.NEW_TOKEN_ADDRESS = isBuy ? swapEvent.tokenOutputs[0].mint : swapEvent.tokenInputs[0].mint;
                 if (currentTokenState.NEW_TOKEN_ADDRESS == currentTokenState.LAST_TOKEN_ADDRESS)
                     return res.status(200).send('Token mint already known')
