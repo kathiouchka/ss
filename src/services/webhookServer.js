@@ -80,7 +80,7 @@ async function monitorAndSell(tokenAddress, initialPrice) {
         return;
     }
 
-    const threshold = initialPrice * 1.4 // 50% price increase
+    const threshold = initialPrice * 1.3 // 50% price increase
 
     while (true) {
         // Check if stopMonitoring is set to true and exit the loop if it is
@@ -96,7 +96,7 @@ async function monitorAndSell(tokenAddress, initialPrice) {
         }
 
         // Wait 10 seconds before checking again
-        await new Promise(resolve => setTimeout(resolve, 10000));
+        await new Promise(resolve => setTimeout(resolve, 60000));
     }
 }
 
@@ -306,7 +306,7 @@ app.post('/webhook', async (req, res) => {
                                     return;
                                 }
 
-                                // const buy = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 50, true, 10);
+                                const buy = await tradeTokenWithJupiter(currentTokenState.NEW_TOKEN_ADDRESS, 60, true, 10);
                                 if (buy && buy.success) {
                                     pendingBuy = {
                                         tokenAddress: currentTokenState.NEW_TOKEN_ADDRESS,
